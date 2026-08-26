@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .header { background: #0f172a; color: #ffffff; text-align: center; padding: 25px 20px; }
+    .header h1 { margin: 0; font-size: 22px; letter-spacing: 1px; color: #38bdf8; }
+    .content { padding: 30px 25px; color: #334155; }
+    .pnr-box { background: #e0f2fe; border: 1px dashed #0284c7; padding: 15px; text-align: center; border-radius: 6px; margin: 20px 0; }
+    .pnr-box span { display: block; font-size: 13px; color: #0369a1; text-transform: uppercase; font-weight: bold; }
+    .pnr-box strong { font-size: 24px; color: #0284c7; letter-spacing: 2px; }
+    .details-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    .details-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+    .details-table td.label { font-weight: bold; color: #475569; width: 40%; }
+    .footer { background: #f8fafc; text-align: center; padding: 20px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>BUS TICKET BOOKING SYSTEM</h1>
+    </div>
+    <div class="content">
+      <h2>Booking Confirmed! 🎉</h2>
+      <p>Hello <strong>{{name}}</strong>,</p>
+      <p>Your bus ticket booking is successful! Below are your trip details. Your official PDF E-Ticket is attached to this email.</p>
+      
+      <div class="pnr-box">
+        <span>BOOKING PNR</span>
+        <strong>{{pnr}}</strong>
+      </div>
+
+      <table class="details-table">
+        <tr>
+          <td class="label">Route</td>
+          <td><strong>{{source}} &rarr; {{destination}}</strong></td>
+        </tr>
+        <tr>
+          <td class="label">Departure Date</td>
+          <td>{{departureDate}} at {{departureTime}}</td>
+        </tr>
+        <tr>
+          <td class="label">Bus Operator</td>
+          <td>{{busName}} ({{busNumber}})</td>
+        </tr>
+        <tr>
+          <td class="label">Total Paid</td>
+          <td><strong>INR {{finalAmountPaid}}</strong> ({{paymentMethod}})</td>
+        </tr>
+      </table>
+
+      <p style="margin-top: 25px;">Your official E-Ticket PDF is attached to this email. You can also download it directly anytime using the button below:</p>
+
+      <div style="text-align: center; margin: 25px 0;">
+        <a href="{{pdfDownloadUrl}}" style="background-color: #0284c7; color: #ffffff; padding: 14px 28px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block; font-size: 15px;">📥 Download PDF Ticket</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p>&copy; 2026 Bus Ticket Booking System. Have a safe journey!</p>
+    </div>
+  </div>
+</body>
+</html>

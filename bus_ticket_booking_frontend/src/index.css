@@ -1,0 +1,274 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --redbus-primary: #dc2626;
+    --redbus-dark: #e11d48;
+    --redbus-bg: #090d16;
+    --card-bg: rgba(15, 23, 42, 0.75);
+    --border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  body {
+    background-color: #090d16;
+    background-image: 
+      linear-gradient(to bottom, rgba(9, 13, 22, 0.72), rgba(9, 13, 22, 0.92)),
+      url("/hero_bus.jpg");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    color: #f8fafc;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+.app-root-container {
+  background-color: transparent;
+  color: #f8fafc;
+}
+
+.home-hero-banner {
+  background: transparent;
+}
+
+body.day-mode .home-hero-banner {
+  background: transparent !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+/* =========================================================
+   PURE WHITE THEME FOR DAY MODE (Applies to Entire Web App)
+   ========================================================= */
+body.day-mode {
+  background-color: #fffaf5 !important;
+  background-image: 
+    linear-gradient(to bottom, rgba(255, 248, 240, 0.45), rgba(248, 250, 252, 0.65)),
+    url("/hero_bus.jpg") !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+  color: #0f172a !important;
+}
+
+/* FORCE ALL TEXT & HEADINGS TO DARK NAVY IN DAY MODE */
+body.day-mode,
+body.day-mode h1,
+body.day-mode h2,
+body.day-mode h3,
+body.day-mode h4,
+body.day-mode h5,
+body.day-mode h6,
+body.day-mode p,
+body.day-mode span:not([class*="text-rose"]):not([class*="text-emerald"]):not([class*="text-blue"]):not([class*="text-sky"]):not([class*="text-indigo"]):not([class*="text-amber"]):not([class*="bg-rose"]):not([class*="bg-emerald"]),
+body.day-mode div:not([class*="text-rose"]):not([class*="text-emerald"]):not([class*="text-blue"]):not([class*="text-sky"]):not([class*="text-indigo"]):not([class*="text-amber"]):not([class*="bg-rose"]):not([class*="bg-emerald"]),
+body.day-mode label,
+body.day-mode .text-white,
+body.day-mode .text-slate-400,
+body.day-mode .text-slate-300,
+body.day-mode .text-slate-200,
+body.day-mode .text-slate-100 {
+  color: #0f172a !important;
+}
+
+body.day-mode .app-root-container {
+  background-color: transparent !important;
+  color: #0f172a !important;
+}
+
+body.day-mode nav {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.day-mode nav span,
+body.day-mode nav a {
+  color: #1e293b !important;
+}
+
+body.day-mode nav a:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+body.day-mode .glass-card,
+body.day-mode div[class*="glass-card"],
+body.day-mode div[class*="bg-slate-900"],
+body.day-mode div[class*="bg-[#0f172a]"],
+body.day-mode div[class*="bg-[#090d16]"],
+body.day-mode div[class*="bg-[#0e131f]"],
+body.day-mode div[class*="bg-slate-950"],
+body.day-mode div[class*="bg-slate-900/90"],
+body.day-mode div[class*="bg-slate-950/80"],
+body.day-mode div[class*="bg-slate-950/60"],
+body.day-mode div[class*="bg-slate-900/80"],
+body.day-mode div[class*="bg-slate-900/50"],
+body.day-mode div[class*="from-rose-950"],
+body.day-mode div[class*="from-indigo-950"],
+body.day-mode div[class*="from-emerald-950"],
+body.day-mode div[class*="from-slate-950"],
+body.day-mode div[class*="from-slate-900"],
+body.day-mode div[class*="via-slate-900"],
+body.day-mode div[class*="to-slate-900"] {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(14px) !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.day-mode button:disabled,
+body.day-mode button[disabled] {
+  background-color: #e2e8f0 !important;
+  background-image: none !important;
+  color: #94a3b8 !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+}
+
+body.day-mode main {
+  background-color: transparent !important;
+}
+
+body.day-mode aside {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.day-mode input,
+body.day-mode select,
+body.day-mode textarea,
+body.day-mode .glass-input {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.day-mode input::placeholder {
+  color: #94a3b8 !important;
+}
+
+body.day-mode .text-slate-400,
+body.day-mode .text-slate-300,
+body.day-mode .text-slate-500 {
+  color: #475569 !important;
+}
+
+body.day-mode .text-white {
+  color: #0f172a !important;
+}
+
+body.day-mode button[class*="bg-slate-800"],
+body.day-mode button[class*="bg-slate-900"],
+body.day-mode div[class*="bg-slate-800"] {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.day-mode div[class*="border-white/10"],
+body.day-mode div[class*="border-white/5"] {
+  border-color: #e2e8f0 !important;
+}
+
+/* Eye Protection Overlay Filter (Common in both Day & Night modes) */
+.eye-protection-filter {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  background-color: rgba(255, 175, 50, 0.11);
+  mix-blend-mode: multiply;
+  z-index: 999999;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+body.day-mode ::-webkit-scrollbar-track {
+  background: #ffffff;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+body.day-mode ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Glassmorphism Utilities */
+.glass-card {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-card-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(225, 29, 72, 0.3);
+  box-shadow: 0 12px 40px 0 rgba(225, 29, 72, 0.15);
+}
+
+.glass-input {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-input:focus {
+  border-color: #f43f5e;
+  outline: none;
+  box-shadow: 0 0 14px rgba(244, 63, 94, 0.3);
+}
+
+.gradient-text-redbus {
+  background: linear-gradient(135deg, #f43f5e 0%, #fb7185 50%, #e11d48 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Seat map sleeper layout classes */
+.sleeper-berth-h {
+  height: 42px;
+  width: 90px;
+}
+
+.sleeper-berth-v {
+  height: 90px;
+  width: 42px;
+}
+
+/* Ticket Print Styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
