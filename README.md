@@ -118,29 +118,29 @@ FRONTEND_URL=http://localhost:5173
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
-DB_PASSWORD=root
+DB_PASSWORD=your_postgres_password
 DB_NAME=bus_booking_db
 
 # Admin Default Credentials
 ADMIN_EMAIL=admin@busticket.com
-ADMIN_PASSWORD=Admin@123456
+ADMIN_PASSWORD=your_admin_password
 
 # JWT Cryptographic Secrets
-JWT_ACCESS_SECRET=a8f9d0c2e4b6173894a05b1c7d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e
+JWT_ACCESS_SECRET=your_jwt_access_secret_key
 JWT_ACCESS_EXPIRES_IN=15m
-JWT_REFRESH_SECRET=b7e6f5d4c3b2a109876543210fedcba9876543210fedcba9876543210fedcba9
+JWT_REFRESH_SECRET=your_jwt_refresh_secret_key
 JWT_REFRESH_EXPIRES_IN=7d
 
 # Nodemailer SMTP Configuration
 EMAIL_SERVICE=gmail
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=porchezhian.doodleblue@gmail.com
-SMTP_PASS=uuat ikiu xxey pxee
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_smtp_app_password
 
 # Payment Gateway Sandbox Credentials
-RAZORPAY_KEY_ID=rzp_test_TTyQMXAh4sO3t2
-RAZORPAY_KEY_SECRET=U35lqA2ZXNh1B7FUYf4puSMF
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 ```
 
 ### Frontend `.env` (`bus_ticket_booking_frontend/.env`)
