@@ -281,6 +281,8 @@ export class BusService {
         }
       }
 
+      const isLadies = i <= 4; // Reserve first 4 seats as designated Ladies Seats
+
       seats.push(
         this.seatModel.create({
           tripId: savedTrip.id,
@@ -288,6 +290,7 @@ export class BusService {
           seatType: seatType,
           price: (parseFloat(basePrice || 850) * priceMultiplier).toFixed(2),
           status: "AVAILABLE",
+          isLadiesSeat: isLadies,
         })
       );
     }
@@ -302,12 +305,6 @@ export class BusService {
    * 8 Buses per page capacity. Pages calculate strictly on matched search results count.
    */
   async searchTrips(query = {}) {
-    const cacheKey = `search_${JSON.stringify(query)}`;
-    const cached = apiCache.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     await this.ensureTripsExist();
 
     const { source, destination, date, busType, sortBy, page = 1, limit = 8 } = query;
@@ -329,22 +326,37 @@ export class BusService {
     let results = [...trips];
 
     // Filter by Source
-    if (source) {
-      const srcFiltered = results.filter((t) => t.route?.source?.toLowerCase().includes(source.toLowerCase()));
-      if (srcFiltered.length > 0) results = srcFiltered;
+    if (source && source.trim() !== "") {
+      results = results.filter((t) => t.route?.source?.toLowerCase().includes(source.trim().toLowerCase()));
     }
 
     // Filter by Destination
-    if (destination) {
-      const dstFiltered = results.filter((t) => t.route?.destination?.toLowerCase().includes(destination.toLowerCase()));
-      if (dstFiltered.length > 0) results = dstFiltered;
+    if (destination && destination.trim() !== "") {
+      results = results.filter((t) => t.route?.destination?.toLowerCase().includes(destination.trim().toLowerCase()));
     }
 
-    // Filter by Bus Type
+    // Filter by Bus Category (AC, SLEEPER, SEATER)
     if (busType && busType !== "ALL") {
-      const bTypeLower = busType.toLowerCase();
-      const typeFiltered = results.filter((t) => (t.bus?.busType || "").toLowerCase().includes(bTypeLower));
-      if (typeFiltered.length > 0) results = typeFiltered;
+      const bTypeUpper = String(busType).toUpperCase();
+      results = results.filter((t) => {
+        const busTypeName = (t.bus?.busType || t.bus?.name || "").toUpperCase();
+        if (bTypeUpper === "AC") {
+          return busTypeName.includes("AC") && !busTypeName.includes("NON-AC") && !busTypeName.includes("NON AC");
+        }
+        if (bTypeUpper === "SLEEPER") {
+          return busTypeName.includes("SLEEPER");
+        }
+        if (bTypeUpper === "SEATER") {
+          return busTypeName.includes("SEATER");
+        }
+        return busTypeName.includes(bTypeUpper);
+      });
+    }
+
+    // Filter by Departure Date (if date parameter provided)
+    if (date && date.trim() !== "") {
+      const formattedSearchDate = this.formatDateStr(date);
+      results = results.filter((t) => this.formatDateStr(t.departureDate) === formattedSearchDate);
     }
 
     // Sorting
@@ -390,7 +402,6 @@ export class BusService {
       },
     };
 
-    apiCache.set(cacheKey, payload, 30000);
     return payload;
   }
 

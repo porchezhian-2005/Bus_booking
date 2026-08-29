@@ -19,13 +19,13 @@ export const SeatMapModal = ({ isOpen, onClose, seats, selectedSeats, onSelectSe
 
   const getSeatColor = (seat) => {
     if (seat.status === "BOOKED") {
-      return "bg-slate-800/80 border-slate-700 text-slate-500 cursor-not-allowed opacity-60";
+      return "bg-slate-900/90 text-slate-600 border-slate-800 cursor-not-allowed opacity-50";
     }
     if (isSeatSelected(seat.id)) {
       return "bg-gradient-to-br from-rose-600 to-red-600 text-white border-rose-400 shadow-lg shadow-rose-600/40 ring-2 ring-rose-400/50 scale-105";
     }
-    if (seat.genderPolicy === "FEMALE_ONLY") {
-      return "bg-pink-950/40 text-pink-300 border-pink-500/40 hover:bg-pink-900/50 cursor-pointer";
+    if (seat.isLadiesSeat || seat.isLadies || seat.genderPolicy === "FEMALE_ONLY") {
+      return "bg-pink-950/60 text-pink-300 border-pink-500/60 hover:border-rose-400 hover:bg-pink-900/80 cursor-pointer shadow-md shadow-pink-950/30";
     }
     return "bg-slate-800/90 text-slate-200 border-slate-700 hover:border-rose-500/60 hover:bg-slate-800 cursor-pointer";
   };

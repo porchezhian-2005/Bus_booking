@@ -9,10 +9,13 @@ import Wallet from "./pages/Wallet";
 import MyBookings from "./pages/MyBookings";
 import Profile from "./pages/Profile";
 import Register from "./pages/Register";
+import BusSearchResults from "./pages/BusSearchResults";
 import Checkout from "./pages/Checkout";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import api from "./services/api";
 import { setCredentials, logout } from "./features/auth/authSlice";
+import { Toaster } from "react-hot-toast";
+import { ToastProvider } from "./components/Toast";
 
 export function App() {
   const dispatch = useDispatch();
@@ -23,7 +26,7 @@ export function App() {
       api.get("/auth/profile")
         .then((res) => {
           if (res.data?.data) {
-            dispatch(setCredentials({ user: res.data.data, token }));
+            dispatch(setCredentials({ user: res.data.data, token, role: res.data.data.role }));
           }
         })
         .catch((err) => {
@@ -36,23 +39,27 @@ export function App() {
   }, [dispatch]);
 
   return (
-    <div className="app-root-container min-h-screen font-sans selection:bg-rose-500 selection:text-white transition-colors duration-300">
-      <Navbar />
-      <main>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/confirmation" element={<BookingConfirmation />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/admin/login" element={<Login />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/wallet" element={<Wallet />} />
-          <Route path="/my-bookings" element={<MyBookings />} />
-          <Route path="/profile" element={<Profile />} />
-        </Routes>
-      </main>
-    </div>
+    <ToastProvider>
+      <Toaster position="top-right" reverseOrder={false} />
+      <div className="app-root-container min-h-screen font-sans selection:bg-rose-500 selection:text-white transition-colors duration-300">
+        <Navbar />
+        <main>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/bus-results" element={<BusSearchResults />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/confirmation" element={<BookingConfirmation />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/admin/login" element={<Login />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/wallet" element={<Wallet />} />
+            <Route path="/my-bookings" element={<MyBookings />} />
+            <Route path="/profile" element={<Profile />} />
+          </Routes>
+        </main>
+      </div>
+    </ToastProvider>
   );
 }
 

@@ -1,20 +1,25 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate, Link } from "react-router";
+import { useNavigate, Link, useLocation } from "react-router";
+import { useForm } from "react-hook-form";
+import toast from "react-hot-toast";
 import { loginUser, adminLoginUser } from "../features/auth/authSlice";
 import authApi from "../services/authApi";
-import { Bus, Lock, Mail, ShieldCheck, User, KeyRound, ArrowRight, CheckCircle2, AlertCircle, X, Key, Eye, EyeOff } from "lucide-react";
+import { Bus, Lock, Mail, ShieldCheck, User, ArrowRight, CheckCircle2, AlertCircle, X, Key, Eye, EyeOff } from "lucide-react";
 
 export const Login = () => {
-  const [portal, setPortal] = useState("USER"); // USER or ADMIN
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const location = useLocation();
+  const isAdminPath = location.pathname.includes("/admin");
+  const [portal, setPortal] = useState(isAdminPath ? "ADMIN" : "USER");
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  // Forgot Password State (3 Steps: 1. Send OTP, 2. Verify OTP, 3. Enter New Password)
+  // React Hook Form
+  const { register, handleSubmit } = useForm();
+
+  // Forgot Password State
   const [isForgotMode, setIsForgotMode] = useState(false);
-  const [forgotStep, setForgotStep] = useState(1); // 1: Email -> 2: OTP -> 3: New Password
+  const [forgotStep, setForgotStep] = useState(1);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotOtp, setForgotOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -27,17 +32,27 @@ export const Login = () => {
   const navigate = useNavigate();
   const { loading, error } = useSelector((state) => state.auth);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (data) => {
     if (portal === "USER") {
-      const result = await dispatch(loginUser({ email, password }));
+      const result = await dispatch(loginUser({ email: data.email, password: data.password }));
       if (loginUser.fulfilled.match(result)) {
-        navigate("/");
+        toast.success("Signed in successfully!");
+        const loggedUserRole = result.payload.user?.role;
+        if (loggedUserRole === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
+      } else {
+        toast.error(result.payload || "Login failed");
       }
     } else {
-      const result = await dispatch(adminLoginUser({ email, password }));
+      const result = await dispatch(adminLoginUser({ email: data.email, password: data.password }));
       if (adminLoginUser.fulfilled.match(result)) {
+        toast.success("Admin login successful!");
         navigate("/admin");
+      } else {
+        toast.error(result.payload || "Admin login failed");
       }
     }
   };
@@ -319,15 +334,14 @@ export const Login = () => {
             )}
 
             {/* Unified Login Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <label className="block text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                   <Mail className="w-3.5 h-3.5 text-rose-500" /> {portal === "USER" ? "User Email" : "Admin Email"}
                 </label>
                 <input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  {...register("email", { required: true })}
                   className="w-full px-4 py-3 rounded-xl glass-input text-xs font-bold"
                   placeholder="name@example.com"
                   autoComplete="off"
@@ -345,7 +359,6 @@ export const Login = () => {
                       type="button"
                       onClick={() => {
                         setIsForgotMode(true);
-                        setForgotEmail(email);
                         setForgotStep(1);
                       }}
                       className="text-[11px] font-bold text-rose-400 hover:underline cursor-pointer"
@@ -357,8 +370,7 @@ export const Login = () => {
                 <div className="relative flex items-center">
                   <input
                     type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    {...register("password", { required: true })}
                     className="w-full px-4 py-3 pr-10 rounded-xl glass-input text-xs font-bold"
                     placeholder="Enter your password"
                     autoComplete="new-password"

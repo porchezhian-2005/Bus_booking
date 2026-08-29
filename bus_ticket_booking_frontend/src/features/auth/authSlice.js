@@ -5,7 +5,10 @@ export const loginUser = createAsyncThunk("auth/loginUser", async (credentials, 
   try {
     const res = await api.post("/auth/login", credentials);
     localStorage.setItem("accessToken", res.data.data.accessToken);
-    localStorage.setItem("userRole", res.data.data.user.role);
+    if (res.data.data.refreshToken) {
+      localStorage.setItem("refreshToken", res.data.data.refreshToken);
+    }
+    localStorage.setItem("userRole", res.data.data.user.role || "user");
     return res.data.data;
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || "Login failed");
@@ -16,6 +19,9 @@ export const adminLoginUser = createAsyncThunk("auth/adminLoginUser", async (cre
   try {
     const res = await api.post("/auth/admin/login", credentials);
     localStorage.setItem("accessToken", res.data.data.accessToken);
+    if (res.data.data.refreshToken) {
+      localStorage.setItem("refreshToken", res.data.data.refreshToken);
+    }
     localStorage.setItem("userRole", "admin");
     return res.data.data;
   } catch (err) {
@@ -45,7 +51,10 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action) => {
-      if (action.payload.user) state.user = action.payload.user;
+      if (action.payload.user) {
+        state.user = action.payload.user;
+        state.role = action.payload.user.role || localStorage.getItem("userRole") || "user";
+      }
       if (action.payload.token) state.token = action.payload.token;
     },
     logout: (state) => {
@@ -53,6 +62,7 @@ const authSlice = createSlice({
       state.token = null;
       state.role = null;
       localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
       localStorage.removeItem("userRole");
     },
   },

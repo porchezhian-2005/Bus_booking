@@ -30,6 +30,10 @@ export const SeatEntity = new EntitySchema({
       length: 20,
       default: "AVAILABLE", // "AVAILABLE", "BOOKED", "SELECTED"
     },
+    isLadiesSeat: {
+      type: "boolean",
+      default: false,
+    },
   },
   relations: {
     trip: {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router";
+import toast from "react-hot-toast";
 import api from "../services/api";
 import bookingApi from "../services/bookingApi";
 import {
@@ -83,6 +84,7 @@ export const AdminDashboard = () => {
   const [busName, setBusName] = useState("");
   const [busNumber, setBusNumber] = useState("");
   const [busType, setBusType] = useState("AC Sleeper (2+1)");
+  const [totalSeats, setTotalSeats] = useState("30");
   const [operatorName, setOperatorName] = useState("Express Travels");
 
   // Route Form State
@@ -147,21 +149,26 @@ export const AdminDashboard = () => {
 
   const handleAddBus = async (e) => {
     e.preventDefault();
-    setMsg("");
     try {
-      await api.post("/buses", { name: busName, busNumber, busType, totalSeats: 30, operatorName });
-      setMsg("Bus added to RedBus fleet successfully!");
+      await api.post("/buses", { 
+        name: busName, 
+        busNumber, 
+        busType, 
+        totalSeats: Number(totalSeats || 30), 
+        operatorName 
+      });
+      toast.success("Bus added to RedBus fleet successfully!");
       setBusName("");
       setBusNumber("");
+      setTotalSeats("30");
       fetchAllAdminData();
     } catch (err) {
-      setMsg(err.response?.data?.message || "Failed to add bus");
+      toast.error(err.response?.data?.message || "Failed to add bus");
     }
   };
 
   const handleAddRoute = async (e) => {
     e.preventDefault();
-    setMsg("");
     try {
       await api.post("/buses/routes", {
         source: routeSource,
@@ -169,22 +176,21 @@ export const AdminDashboard = () => {
         distanceKm: Number(distanceKm),
         durationHours: Number(durationHours),
       });
-      setMsg("New Route created successfully!");
+      toast.success("New Route created successfully!");
       setRouteSource("");
       setRouteDestination("");
       setDistanceKm("");
       setDurationHours("");
       fetchAllAdminData();
     } catch (err) {
-      setMsg(err.response?.data?.message || "Failed to create route");
+      toast.error(err.response?.data?.message || "Failed to create route");
     }
   };
 
   const handleScheduleTrip = async (e) => {
     e.preventDefault();
-    setMsg("");
     if (!selectedBusId || !selectedRouteId) {
-      setMsg("Please select both a Bus and a Route to schedule a trip.");
+      toast.error("Please select both a Bus and a Route to schedule a trip.");
       return;
     }
     try {
@@ -196,16 +202,15 @@ export const AdminDashboard = () => {
         arrivalTime: tripArrivalTime,
         basePrice: Number(tripBasePrice),
       });
-      setMsg("Trip scheduled and seats generated! Published live to User Search Dashboard!");
+      toast.success("Trip scheduled and seats generated!");
       fetchAllAdminData();
     } catch (err) {
-      setMsg(err.response?.data?.message || "Failed to schedule trip");
+      toast.error(err.response?.data?.message || "Failed to schedule trip");
     }
   };
 
   const handleAddCoupon = async (e) => {
     e.preventDefault();
-    setMsg("");
     try {
       await api.post("/coupons", {
         code: couponCode,
@@ -214,31 +219,32 @@ export const AdminDashboard = () => {
         minBookingAmount: Number(minBookingAmount || 0),
         expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       });
-      setMsg("Promo Coupon created successfully!");
+      toast.success("Promo Coupon created successfully!");
       setCouponCode("");
       setDiscountValue("");
       setMinBookingAmount("");
       fetchAllAdminData();
     } catch (err) {
-      setMsg(err.response?.data?.message || "Failed to create coupon");
+      toast.error(err.response?.data?.message || "Failed to create coupon");
     }
   };
 
   const handleUpdateConfig = async (e) => {
     e.preventDefault();
-    setMsg("");
     try {
       await api.put("/config", {
         walletMaxUsagePercent: Number(config.walletMaxUsagePercent),
         referralAmount: Number(config.referralAmount),
       });
-      setMsg("System configuration updated successfully!");
+      toast.success("System configuration updated successfully!");
     } catch (err) {
-      setMsg(err.response?.data?.message || "Failed to update config");
+      toast.error(err.response?.data?.message || "Failed to update config");
     }
   };
 
-  if (!token || role !== "admin") {
+  const effectiveRole = user?.role || role || localStorage.getItem("userRole");
+
+  if (!token || effectiveRole !== "admin") {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4">
         <div className="max-w-md w-full glass-card p-8 rounded-3xl border border-rose-500/30 text-center space-y-5 shadow-2xl">
@@ -424,12 +430,7 @@ export const AdminDashboard = () => {
           </div>
         </div>
 
-        {msg && (
-          <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-300 text-xs font-bold flex items-center gap-2 shadow-lg">
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-            <span>{msg}</span>
-          </div>
-        )}
+
 
         {/* TAB 1: PROJECT OVERVIEW */}
         {activeTab === "Project" && (
@@ -893,10 +894,20 @@ export const AdminDashboard = () => {
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold cursor-pointer`}
                 >
                   <option value="AC Sleeper (2+1)">AC Sleeper (2+1)</option>
-                  <option value="Volvo Multi-Axle AC">Volvo Multi-Axle AC</option>
-                  <option value="AC Seater">AC Seater</option>
-                  <option value="Non-AC Seater">Non-AC Seater</option>
+                  <option value="AC Seater (2+2)">AC Seater (2+2)</option>
+                  <option value="Non-AC Sleeper (2+1)">Non-AC Sleeper (2+1)</option>
+                  <option value="Non-AC Seater (2+2)">Non-AC Seater (2+2)</option>
                 </select>
+                <input
+                  type="number"
+                  placeholder="Total Seat Capacity (e.g. 30)"
+                  value={totalSeats}
+                  onChange={(e) => setTotalSeats(e.target.value)}
+                  className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold focus:outline-none focus:border-rose-500`}
+                  min="10"
+                  max="60"
+                  required
+                />
                 <input
                   type="text"
                   placeholder="Operator Name (e.g. KPN Express)"
@@ -1243,7 +1254,8 @@ export const AdminDashboard = () => {
                     <th className="pb-3 font-bold uppercase">Route</th>
                     <th className="pb-3 font-bold uppercase">Departure</th>
                     <th className="pb-3 font-bold uppercase">Payment</th>
-                    <th className="pb-3 font-bold uppercase">Amount & Status</th>
+                    <th className="pb-3 font-bold uppercase">Amount</th>
+                    <th className="pb-3 font-bold uppercase">Booking Status</th>
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${borderDivider}`}>
@@ -1264,19 +1276,20 @@ export const AdminDashboard = () => {
                         <td className="py-3 font-semibold">{b.paymentMethod}</td>
                         <td className="py-3 font-black">
                           {isCancelled ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-rose-500 line-through">₹{b.finalAmountPaid}</span>
-                              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-rose-500/20 text-rose-500 border border-rose-500/30">
-                                ✕ CANCELLED
-                              </span>
-                            </div>
+                            <span className="text-rose-500 line-through">₹{b.finalAmountPaid}</span>
                           ) : (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-emerald-500">₹{b.finalAmountPaid}</span>
-                              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
-                                ✓ COMPLETED
-                              </span>
-                            </div>
+                            <span className="text-emerald-500">₹{b.finalAmountPaid}</span>
+                          )}
+                        </td>
+                        <td className="py-3">
+                          {isCancelled ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-rose-500/20 text-rose-500 border border-rose-500/30">
+                              ✕ CANCELLED
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+                              ✓ COMPLETED
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -1352,9 +1365,9 @@ export const AdminDashboard = () => {
                     {coupons.map((c) => (
                       <tr key={c.id} className={isDay ? "text-slate-800" : "text-slate-300"}>
                         <td className="py-3 font-bold text-rose-500">{c.code}</td>
-                        <td className="py-3 font-semibold">{c.discountType}</td>
+                        <td className="py-3 font-semibold">{c.discountType || (c.discountPercent ? "PERCENT" : "FIXED")}</td>
                         <td className="py-3 font-black text-emerald-500">
-                          {c.discountType === "PERCENT" ? `${c.discountValue}%` : `₹${c.discountValue}`}
+                          {c.discountPercent ? `${c.discountPercent}% (Max ₹${c.maxDiscountAmount})` : `₹${c.discountValue || c.maxDiscountAmount}`}
                         </td>
                         <td className="py-3 font-semibold">₹{c.minBookingAmount || 0}</td>
                       </tr>

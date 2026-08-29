@@ -11,7 +11,27 @@ export class CouponService {
    * Admin: Create Coupon
    */
   async createCoupon(couponData) {
-    const coupon = this.couponModel.create(couponData);
+    const { code, discountType, discountValue, minBookingAmount, expiryDate } = couponData;
+    let discountPercent = 10;
+    let maxDiscountAmount = 200;
+
+    if (discountType === "PERCENT") {
+      discountPercent = parseFloat(discountValue) || 10;
+      maxDiscountAmount = 500;
+    } else {
+      // FIXED AMOUNT DISCOUNT: calculate percent equivalent or set fixed value
+      discountPercent = Math.min(parseFloat(discountValue) || 10, 100);
+      maxDiscountAmount = parseFloat(discountValue) || 200;
+    }
+
+    const coupon = this.couponModel.create({
+      code,
+      discountPercent,
+      maxDiscountAmount,
+      minBookingAmount: parseFloat(minBookingAmount) || 0,
+      expiryDate: expiryDate ? new Date(expiryDate).toISOString().split("T")[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      isActive: true,
+    });
     return await this.couponModel.save(coupon);
   }
 
