@@ -1580,10 +1580,55 @@ export class BusService {
   }
 
   /**
-   * Get Seat Layout & Availability for a Trip
+   * Get Seat Layout & Availability for a Trip with Lazy Hold Expiration
    */
-  async getTripSeats(tripId) {
-    return await this.seatModel.find({ where: { tripId } });
+  async getTripSeats(tripId, userId = null) {
+    const seats = await this.seatModel.find({ where: { tripId } });
+    const now = new Date();
+
+    return seats.map((seat) => {
+      const seatObj = { ...seat };
+      if (seat.status === "HELD") {
+        if (seat.heldUntil && new Date(seat.heldUntil) <= now) {
+          // Lazy expiry: Treat past-due hold as AVAILABLE
+          seatObj.status = "AVAILABLE";
+          seatObj.heldBy = null;
+          seatObj.heldUntil = null;
+          seatObj.isHeldByMe = false;
+        } else {
+          // Active hold
+          seatObj.isHeldByMe = userId && seat.heldBy === userId;
+        }
+      } else {
+        seatObj.isHeldByMe = false;
+      }
+      return seatObj;
+    });
+  }
+
+  /**
+   * Release Held Seats for a User
+   */
+  async releaseSeats(userId, tripId, seatIds) {
+    if (!userId || !tripId || !Array.isArray(seatIds) || seatIds.length === 0) {
+      return { releasedCount: 0 };
+    }
+
+    const seats = await this.seatModel.find({ where: { tripId } });
+    const targetSeats = seats.filter((s) => seatIds.includes(s.id));
+    let releasedCount = 0;
+
+    for (const seat of targetSeats) {
+      if (seat.status === "HELD" && seat.heldBy === userId) {
+        seat.status = "AVAILABLE";
+        seat.heldBy = null;
+        seat.heldUntil = null;
+        await this.seatModel.save(seat);
+        releasedCount++;
+      }
+    }
+
+    return { releasedCount };
   }
 
   /**

@@ -28,7 +28,15 @@ export const SeatEntity = new EntitySchema({
     status: {
       type: "varchar",
       length: 20,
-      default: "AVAILABLE", // "AVAILABLE", "BOOKED", "SELECTED"
+      default: "AVAILABLE", // "AVAILABLE", "HELD", "BOOKED"
+    },
+    heldBy: {
+      type: "uuid",
+      nullable: true,
+    },
+    heldUntil: {
+      type: "timestamp",
+      nullable: true,
     },
     isLadiesSeat: {
       type: "boolean",
