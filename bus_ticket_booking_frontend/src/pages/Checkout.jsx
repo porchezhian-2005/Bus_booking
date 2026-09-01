@@ -136,9 +136,9 @@ export const Checkout = () => {
 
     // Case 2: Remaining cost > 0 -> Razorpay TEST Payment Flow
     try {
-      // Step A: Request Razorpay TEST Order from backend
+      // Step A: Request Razorpay TEST Order from backend using selection parameters (Backend calculates amount)
       toast.loading("Creating Razorpay TEST order...", { id: "checkout-process" });
-      const orderRes = await bookingApi.createRazorpayOrder(finalPayable);
+      const orderRes = await bookingApi.createRazorpayOrder(baseBookingPayload);
       const orderData = orderRes.data?.data || orderRes.data;
 
       if (!orderData || !orderData.orderId) {

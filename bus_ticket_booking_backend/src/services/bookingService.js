@@ -38,6 +38,99 @@ export class BookingService {
   }
 
   /**
+   * Calculate Authoritative Booking Amount Server-Side
+   */
+  async calculateBookingAmount(userId, bookingData, entityManager = null, lockOptions = null) {
+    const { tripId, seatIds, couponCode, useWallet } = bookingData;
+
+    if (!tripId) {
+      const error = new Error("tripId is required");
+      error.statusCode = 400;
+      throw error;
+    }
+    if (!seatIds || !Array.isArray(seatIds) || seatIds.length === 0) {
+      const error = new Error("seatIds must be a non-empty array");
+      error.statusCode = 400;
+      throw error;
+    }
+    if (couponCode && useWallet) {
+      const error = new Error("Coupons and Wallet payment cannot be used together for the same booking.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const em = entityManager || AppDataSource.manager;
+    const seatRepo = em.getRepository(this.seatModel.target);
+
+    const queryOptions = {
+      where: [
+        { id: In(seatIds), tripId },
+        { seatNumber: In(seatIds), tripId },
+      ],
+    };
+    if (lockOptions) {
+      queryOptions.lock = lockOptions;
+    }
+
+    const rawSeats = await seatRepo.find(queryOptions);
+
+    if (!rawSeats || rawSeats.length < seatIds.length) {
+      for (const sId of seatIds) {
+        const found = rawSeats.find((s) => s.id === sId || s.seatNumber === sId);
+        if (!found) {
+          const error = new Error(`Seat ${sId} not found for the specified trip`);
+          error.statusCode = 404;
+          throw error;
+        }
+      }
+    }
+
+    for (const seat of rawSeats) {
+      if (seat.status === "BOOKED") {
+        const error = new Error(`Seat ${seat.seatNumber} is already booked by another user.`);
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
+    const totalAmount = rawSeats.reduce((sum, s) => sum + parseFloat(s.price), 0);
+    let discountAmount = 0;
+    let walletAmountUsed = 0;
+
+    if (couponCode && this.couponService) {
+      const couponResult = await this.couponService.validateCoupon(
+        couponCode,
+        totalAmount,
+        false,
+        userId,
+        em
+      );
+      discountAmount = parseFloat(couponResult.discountAmount);
+    }
+
+    let remainingCost = totalAmount - discountAmount;
+
+    if (useWallet && this.walletService && this.configService) {
+      const wallet = await this.walletService.getUserWallet(userId);
+      const config = await this.configService.getConfig();
+
+      const maxWalletUsagePercent = config.walletMaxUsagePercent || 20;
+      const maxWalletAllowed = (totalAmount * maxWalletUsagePercent) / 100;
+
+      walletAmountUsed = Math.min(wallet.balance, maxWalletAllowed, remainingCost);
+      remainingCost = Math.max(0, remainingCost - walletAmountUsed);
+    }
+
+    return {
+      totalAmount,
+      discountAmount,
+      walletAmountUsed,
+      finalAmountPaid: remainingCost,
+      seats: rawSeats,
+    };
+  }
+
+  /**
    * Create Booking with Seat Reservation & Payment Calculation
    */
   async createBooking(userId, bookingData) {
@@ -169,81 +262,34 @@ export class BookingService {
         }
       }
 
-      // 1. Fetch Seats with pessimistic write locking to prevent race conditions
-      const rawSeats = await seatRepo.find({
-        where: [
-          { id: In(seatIds), tripId },
-          { seatNumber: In(seatIds), tripId },
-        ],
-        lock: { mode: "pessimistic_write" },
-      });
+      // 1. Calculate Booking Amount & Fetch Seats with pessimistic write locking to prevent race conditions
+      const calc = await this.calculateBookingAmount(
+        userId,
+        { tripId, seatIds, couponCode, useWallet },
+        transactionalEntityManager,
+        { mode: "pessimistic_write" }
+      );
 
-      if (!rawSeats || rawSeats.length < seatIds.length) {
-        for (const sId of seatIds) {
-          const found = rawSeats.find((s) => s.id === sId || s.seatNumber === sId);
-          if (!found) {
-            const error = new Error(`Seat ${sId} not found for the specified trip`);
-            error.statusCode = 404;
-            throw error;
-          }
-        }
-      }
-
-      for (const seat of rawSeats) {
-        if (seat.status === "BOOKED") {
-          const error = new Error(`Seat ${seat.seatNumber} is already booked by another user.`);
-          error.statusCode = 400;
-          throw error;
-        }
-      }
-
-      const seats = rawSeats;
-
-      // 2. Calculate Total Seat Cost Backend-Side
-      let totalAmount = seats.reduce((sum, s) => sum + parseFloat(s.price), 0);
-      let discountAmount = 0;
-      let walletAmountUsed = 0;
+      const seats = calc.seats;
+      const totalAmount = calc.totalAmount;
+      const discountAmount = calc.discountAmount;
+      let walletAmountUsed = calc.walletAmountUsed;
+      let remainingCost = calc.finalAmountPaid;
       let paymentMethod = "GATEWAY";
 
-      // 3. Apply Coupon Discount if applicable (with per-user limit check)
-      if (couponCode && this.couponService) {
-        const couponResult = await this.couponService.validateCoupon(
-          couponCode,
-          totalAmount,
-          false,
+      // 4. Debit Wallet if applicable
+      if (walletAmountUsed > 0) {
+        const pnrReference = `PNR-DEBIT-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+        await this.walletService.debitMoney(
           userId,
+          walletAmountUsed,
+          "BOOKING_PAYMENT",
+          `Payment for Bus Booking Seats: ${seats.map((s) => s.seatNumber).join(",")}`,
+          pnrReference,
           transactionalEntityManager
         );
-        discountAmount = parseFloat(couponResult.discountAmount);
-      }
 
-
-      let remainingCost = totalAmount - discountAmount;
-
-      // 4. Calculate Allowed Wallet Amount Backend-Side & Debit Wallet
-      if (useWallet && this.walletService && this.configService) {
-        const wallet = await this.walletService.getUserWallet(userId);
-        const config = await this.configService.getConfig();
-
-        const maxWalletUsagePercent = config.walletMaxUsagePercent || 20;
-        const maxWalletAllowed = (totalAmount * maxWalletUsagePercent) / 100;
-
-        walletAmountUsed = Math.min(wallet.balance, maxWalletAllowed, remainingCost);
-
-        if (walletAmountUsed > 0) {
-          const pnrReference = `PNR-DEBIT-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
-          await this.walletService.debitMoney(
-            userId,
-            walletAmountUsed,
-            "BOOKING_PAYMENT",
-            `Payment for Bus Booking Seats: ${seats.map((s) => s.seatNumber).join(",")}`,
-            pnrReference,
-            transactionalEntityManager
-          );
-
-          paymentMethod = walletAmountUsed >= remainingCost ? "WALLET" : "MIXED";
-          remainingCost = Math.max(0, remainingCost - walletAmountUsed);
-        }
+        paymentMethod = walletAmountUsed >= (totalAmount - discountAmount) ? "WALLET" : "MIXED";
       }
 
       // 5. Razorpay TEST Payment Verification (if remainingCost > 0)
@@ -272,6 +318,25 @@ export class BookingService {
 
         if (!isValidSignature) {
           const error = new Error("Invalid Razorpay TEST payment signature! Verification failed.");
+          error.statusCode = 400;
+          throw error;
+        }
+
+        // Verify Razorpay Order Amount Server-Side (Problem #1 fix)
+        try {
+          const razorpayOrder = await razorpayService.fetchOrder(razorpay_order_id);
+          const expectedPaise = Math.round(remainingCost * 100);
+          if (razorpayOrder && razorpayOrder.amount !== expectedPaise) {
+            const error = new Error(
+              `Razorpay payment order amount mismatch! Expected ₹${remainingCost.toFixed(2)} (${expectedPaise} paise), but Razorpay order was created for ₹${(razorpayOrder.amount / 100).toFixed(2)} (${razorpayOrder.amount} paise).`
+            );
+            error.statusCode = 400;
+            throw error;
+          }
+        } catch (fetchErr) {
+          if (fetchErr.statusCode === 400) throw fetchErr;
+          console.error("Razorpay order verification error:", fetchErr.message);
+          const error = new Error(`Razorpay order verification failed: ${fetchErr.message}`);
           error.statusCode = 400;
           throw error;
         }

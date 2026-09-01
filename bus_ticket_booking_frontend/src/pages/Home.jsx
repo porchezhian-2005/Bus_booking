@@ -160,7 +160,7 @@ export const Home = () => {
                   />
                   {errors.source && (
                     <p className="text-xs font-extrabold text-rose-500 mt-1.5 flex items-center gap-1">
-                      <span>⚠️</span> {errors.source.message}
+                      <span></span> {errors.source.message}
                     </p>
                   )}
                 </div>
@@ -200,7 +200,7 @@ export const Home = () => {
                   />
                   {errors.destination && (
                     <p className="text-xs font-extrabold text-rose-500 mt-1.5 flex items-center gap-1">
-                      <span>⚠️</span> {errors.destination.message}
+                      <span></span> {errors.destination.message}
                     </p>
                   )}
                 </div>
@@ -228,7 +228,7 @@ export const Home = () => {
                   />
                   {errors.date && (
                     <p className="text-xs font-extrabold text-rose-500 mt-1.5 flex items-center gap-1">
-                      <span>⚠️</span> {errors.date.message}
+                      <span></span> {errors.date.message}
                     </p>
                   )}
                 </div>
