@@ -35,14 +35,22 @@ export const SeatEntity = new EntitySchema({
       default: false,
     },
   },
+  indices: [
+    {
+      name: "IDX_UNIQUE_TRIP_SEAT",
+      unique: true,
+      columns: ["tripId", "seatNumber"],
+    },
+  ],
   relations: {
     trip: {
       target: "Trip",
       type: "many-to-one",
       joinColumn: { name: "tripId" },
-      onDelete: "CASCADE",
+      onDelete: "RESTRICT",
     },
   },
 });
 
 export default SeatEntity;
+

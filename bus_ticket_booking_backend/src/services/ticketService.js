@@ -1,10 +1,12 @@
 import PDFDocument from "pdfkit";
+import AppDataSource from "../config/database.js";
 
 /**
  * Ticket Service
  * Handles PDF Ticket Generation and Ticket Cancellation with Refund Calculation
  */
 export class TicketService {
+
   constructor(bookingModel, passengerModel, seatModel, walletService) {
     this.bookingModel = bookingModel;
     this.passengerModel = passengerModel;
@@ -206,57 +208,72 @@ export class TicketService {
    * Cancel Ticket & Calculate Refund back to User Wallet
    */
   async cancelTicket(userId, pnr) {
-    const booking = await this.bookingModel.findOne({ where: { pnr, userId } });
-
-    if (!booking) {
-      const error = new Error("Booking record not found.");
-      error.statusCode = 404;
-      throw error;
-    }
-
-    if (booking.bookingStatus === "CANCELLED") {
-      const error = new Error("This ticket has already been cancelled.");
+    if (!pnr) {
+      const error = new Error("PNR is required");
       error.statusCode = 400;
       throw error;
     }
 
-    // Refund calculation: 80% refund (20% cancellation fee)
-    const paidAmount = parseFloat(booking.finalAmountPaid);
-    const refundAmount = (paidAmount * 0.80).toFixed(2);
+    return await AppDataSource.transaction(async (transactionalEntityManager) => {
+      const bookingRepo = transactionalEntityManager.getRepository(this.bookingModel.target || "Booking");
+      const passengerRepo = transactionalEntityManager.getRepository(this.passengerModel.target || "Passenger");
+      const seatRepo = transactionalEntityManager.getRepository(this.seatModel.target || "Seat");
 
-    // Update booking status
-    booking.bookingStatus = "CANCELLED";
-    await this.bookingModel.save(booking);
+      const booking = await bookingRepo.findOne({ where: { pnr, userId } });
 
-    // Free up booked seats
-    const passengers = await this.passengerModel.find({ where: { bookingId: booking.id } });
-    for (const p of passengers) {
-      const seat = await this.seatModel.findOne({
-        where: { tripId: booking.tripId, seatNumber: p.seatNumber },
-      });
-      if (seat) {
-        seat.status = "AVAILABLE";
-        await this.seatModel.save(seat);
+      if (!booking) {
+        const error = new Error("Booking record not found or does not belong to user.");
+        error.statusCode = 404;
+        throw error;
       }
-    }
 
-    // Process wallet refund
-    if (this.walletService && parseFloat(refundAmount) > 0) {
-      await this.walletService.addMoney(
-        userId,
-        parseFloat(refundAmount),
-        `REFUND-CANCEL-${booking.pnr}`
-      );
-    }
+      if (booking.bookingStatus === "CANCELLED") {
+        const error = new Error("This ticket has already been cancelled.");
+        error.statusCode = 400;
+        throw error;
+      }
 
-    return {
-      message: "Ticket cancelled successfully. 80% refund credited to your wallet balance.",
-      pnr: booking.pnr,
-      paidAmount: paidAmount.toFixed(2),
-      refundAmount: refundAmount,
-      cancellationFee: (paidAmount - parseFloat(refundAmount)).toFixed(2),
-    };
+      // Refund calculation: 80% refund (20% cancellation fee)
+      const paidAmount = parseFloat(booking.finalAmountPaid);
+      const refundAmount = (paidAmount * 0.80).toFixed(2);
+
+      // Update booking status
+      booking.bookingStatus = "CANCELLED";
+      await bookingRepo.save(booking);
+
+      // Free up booked seats
+      const passengers = await passengerRepo.find({ where: { bookingId: booking.id } });
+      for (const p of passengers) {
+        const seat = await seatRepo.findOne({
+          where: { tripId: booking.tripId, seatNumber: p.seatNumber },
+        });
+        if (seat) {
+          seat.status = "AVAILABLE";
+          await seatRepo.save(seat);
+        }
+      }
+
+      // Process wallet refund inside the same DB transaction
+      if (this.walletService && parseFloat(refundAmount) > 0) {
+        const refundRefId = `REFUND-CANCEL-${booking.pnr}`;
+        await this.walletService.addMoney(
+          userId,
+          parseFloat(refundAmount),
+          refundRefId,
+          transactionalEntityManager
+        );
+      }
+
+      return {
+        message: "Ticket cancelled successfully. 80% refund credited to your wallet balance.",
+        pnr: booking.pnr,
+        paidAmount: paidAmount.toFixed(2),
+        refundAmount: refundAmount,
+        cancellationFee: (paidAmount - parseFloat(refundAmount)).toFixed(2),
+      };
+    });
   }
 }
 
 export default TicketService;
+

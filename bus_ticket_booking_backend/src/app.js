@@ -14,6 +14,7 @@ import bookingRoutes from "./routes/bookingRoutes.js";
 import ticketRoutes from "./routes/ticketRoutes.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import errorHandler from "./middleware/errorMiddleware.js";
 import { setupSwagger } from "./config/swagger.js";
 
 dotenv.config();
@@ -91,5 +92,8 @@ app.get("/health", (req, res) => {
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
 });
+
+// Global Error Handler Middleware
+app.use(errorHandler);
 
 export default app;

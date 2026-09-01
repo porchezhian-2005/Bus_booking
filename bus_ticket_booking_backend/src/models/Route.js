@@ -40,6 +40,13 @@ export const RouteEntity = new EntitySchema({
       updateDate: true,
     },
   },
+  relations: {
+    points: {
+      target: "RoutePoint",
+      type: "one-to-many",
+      inverseSide: "route",
+    },
+  },
 });
 
 export default RouteEntity;

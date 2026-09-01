@@ -33,12 +33,20 @@ export class ReferralService {
 
   /**
    * Process Referral code during new user signup
+   * Note: Status is created as PENDING. Reward is NOT credited until referee's first successful booking.
    */
   async processReferralSignup(refereeId, referralCode) {
     if (!referralCode) return;
 
     const referrer = await this.userModel.findOne({ where: { referralCode } });
     if (!referrer) return;
+
+    // Prevent user from referring themselves
+    if (referrer.id === refereeId) return;
+
+    // Check if referral record already exists for this referee
+    const existingReferral = await this.referralModel.findOne({ where: { refereeId } });
+    if (existingReferral) return;
 
     // Get configured referral reward amount (default ₹500)
     let rewardAmount = 500.00;
@@ -49,83 +57,72 @@ export class ReferralService {
       }
     }
 
-    // Create referral record
+    // Create referral record in PENDING state (NO instant wallet credit)
     const referral = this.referralModel.create({
       referrerId: referrer.id,
       refereeId: refereeId,
       referralCode: referralCode,
-      status: "SUCCESSFUL",
+      status: "PENDING",
       rewardAmount: rewardAmount,
-      rewardCredited: true,
+      rewardCredited: false,
     });
 
     await this.referralModel.save(referral);
-
-    // Instant 2-Way Reward: Credit ₹500 to BOTH Referrer AND Referee wallets!
-    if (this.walletService) {
-      try {
-        // 1. Credit ₹500 to the New User (Referee)
-        await this.walletService.addMoney(
-          refereeId,
-          rewardAmount,
-          `WELCOME-REFERRAL-BONUS-${referralCode}`
-        );
-
-        // 2. Credit ₹500 to the Person who Referrer
-        await this.walletService.addMoney(
-          referrer.id,
-          rewardAmount,
-          `REFERRER-REWARD-BONUS-${referralCode}`
-        );
-
-        console.log(`🎁 Instant 2-Way ₹${rewardAmount} Bonus credited to BOTH Referrer (${referrer.id}) and Referee (${refereeId})`);
-      } catch (err) {
-        console.error("Failed to credit 2-way referral wallet bonus:", err.message);
-      }
-    }
+    console.log(`📌 Referral record created in PENDING state for referee ${refereeId} (Referrer: ${referrer.id})`);
   }
 
   /**
-   * Credit ₹500 referral reward to referrer's wallet after referee's first successful booking
+   * Credit referral reward to referrer and referee wallets after referee's first successful booking
    */
-  async creditReferralRewardOnFirstBooking(refereeId) {
-    const referral = await this.referralModel.findOne({
+  async creditReferralRewardOnFirstBooking(refereeId, transactionalManager = null) {
+    const refRepo = transactionalManager ? transactionalManager.getRepository(this.referralModel.target || "Referral") : this.referralModel;
+
+    const referral = await refRepo.findOne({
       where: { refereeId, status: "PENDING", rewardCredited: false },
     });
 
     if (!referral) return;
 
-    const rewardAmount = parseFloat(referral.rewardAmount);
+    // Fetch configured reward amount
+    let rewardAmount = parseFloat(referral.rewardAmount) || 500.00;
+    if (this.configModel) {
+      const configRepo = transactionalManager ? transactionalManager.getRepository(this.configModel.target || "SystemConfig") : this.configModel;
+      const configs = await configRepo.find();
+      if (configs && configs.length > 0) {
+        rewardAmount = parseFloat(configs[0].referralAmount);
+      }
+    }
 
-    // 1. Credit reward to referrer's wallet
+    // 1. Credit reward ONLY to referrer's wallet (per requirement: REFERRER only)
     if (this.walletService) {
       await this.walletService.addMoney(
         referral.referrerId,
         rewardAmount,
-        `REF-REWARD-REFERRER-${referral.id}`
-      );
-
-      // 2. Credit reward to referee's wallet as well (2-way bonus)
-      await this.walletService.addMoney(
-        referral.refereeId,
-        rewardAmount,
-        `REF-REWARD-REFEREE-${referral.id}`
+        `REF-REWARD-REFERRER-${referral.id}`,
+        transactionalManager,
+        "REFERRAL_REWARD",
+        `Added ₹${rewardAmount.toFixed(0)} to wallet for Referral Reward`
       );
     }
 
-    // 3. Mark referral as SUCCESSFUL and rewardCredited = true
+    // 2. Mark referral as SUCCESSFUL and rewardCredited = true
     referral.status = "SUCCESSFUL";
     referral.rewardCredited = true;
-    await this.referralModel.save(referral);
+    referral.rewardAmount = rewardAmount;
+    await refRepo.save(referral);
 
-    // 3. Send notification email to referrer
-    const referrer = await this.userModel.findOne({ where: { id: referral.referrerId } });
+    console.log(`🎁 Referral reward of ₹${rewardAmount} successfully credited ONLY to Referrer (${referral.referrerId}) on referee's 1st booking`);
+
+
+    // 4. Send notification email to referrer
+    const userRepo = transactionalManager ? transactionalManager.getRepository(this.userModel.target || "User") : this.userModel;
+    const referrer = await userRepo.findOne({ where: { id: referral.referrerId } });
     if (referrer && this.emailService) {
       try {
         await this.emailService.sendTemplateEmail(
           referrer.email,
           "Referral Reward Credited! 🎉",
-          "welcome", // Or dedicated template
+          "welcome",
           {
             name: referrer.name,
             referralCode: referrer.referralCode,
@@ -136,6 +133,7 @@ export class ReferralService {
       }
     }
   }
+
 
   /**
    * Get Referral stats and referred users list for authenticated user

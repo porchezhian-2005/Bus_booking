@@ -61,6 +61,24 @@ export const BookingEntity = new EntitySchema({
       length: 50,
       nullable: true,
     },
+    boardingPointId: {
+      type: "uuid",
+      nullable: true,
+    },
+    droppingPointId: {
+      type: "uuid",
+      nullable: true,
+    },
+    boardingPointName: {
+      type: "varchar",
+      length: 150,
+      nullable: true,
+    },
+    droppingPointName: {
+      type: "varchar",
+      length: 150,
+      nullable: true,
+    },
     createdAt: {
       type: "timestamp",
       createDate: true,
@@ -75,13 +93,32 @@ export const BookingEntity = new EntitySchema({
       target: "User",
       type: "many-to-one",
       joinColumn: { name: "userId" },
-      onDelete: "CASCADE",
+      onDelete: "RESTRICT",
     },
     trip: {
       target: "Trip",
       type: "many-to-one",
       joinColumn: { name: "tripId" },
-      onDelete: "CASCADE",
+      onDelete: "RESTRICT",
+    },
+    boardingPoint: {
+      target: "RoutePoint",
+      type: "many-to-one",
+      joinColumn: { name: "boardingPointId" },
+      onDelete: "RESTRICT",
+      nullable: true,
+    },
+    droppingPoint: {
+      target: "RoutePoint",
+      type: "many-to-one",
+      joinColumn: { name: "droppingPointId" },
+      onDelete: "RESTRICT",
+      nullable: true,
+    },
+    passengers: {
+      target: "Passenger",
+      type: "one-to-many",
+      inverseSide: "booking",
     },
   },
 });

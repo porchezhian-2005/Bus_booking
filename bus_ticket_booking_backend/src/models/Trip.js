@@ -50,13 +50,13 @@ export const TripEntity = new EntitySchema({
       target: "Bus",
       type: "many-to-one",
       joinColumn: { name: "busId" },
-      onDelete: "CASCADE",
+      onDelete: "RESTRICT",
     },
     route: {
       target: "Route",
       type: "many-to-one",
       joinColumn: { name: "routeId" },
-      onDelete: "CASCADE",
+      onDelete: "RESTRICT",
     },
   },
 });

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .header { background: #0f172a; color: #ffffff; text-align: center; padding: 25px 20px; }
+    .header h1 { margin: 0; font-size: 22px; letter-spacing: 1px; color: #ef4444; }
+    .content { padding: 30px 25px; color: #334155; }
+    .pnr-box { background: #fee2e2; border: 1px dashed #dc2626; padding: 15px; text-align: center; border-radius: 6px; margin: 20px 0; }
+    .pnr-box span { display: block; font-size: 13px; color: #991b1b; text-transform: uppercase; font-weight: bold; }
+    .pnr-box strong { font-size: 24px; color: #dc2626; letter-spacing: 2px; }
+    .reason-box { background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 16px; margin: 20px 0; border-radius: 0 6px 6px 0; }
+    .reason-box span { font-size: 11px; color: #991b1b; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
+    .reason-box p { margin: 0; font-size: 14px; color: #991b1b; font-weight: 600; }
+    .details-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    .details-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+    .details-table td.label { font-weight: bold; color: #475569; width: 40%; }
+    .footer { background: #f8fafc; text-align: center; padding: 20px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>BUS TICKET BOOKING SYSTEM</h1>
+    </div>
+    <div class="content">
+      <h2>Trip Cancellation & 100% Full Refund Notice 💳</h2>
+      <p>Hello <strong>{{name}}</strong>,</p>
+      <p>We regret to inform you that your upcoming bus trip has been cancelled because the assigned bus became unavailable and no suitable replacement vehicle could be arranged. A <strong>100% full refund</strong> has been credited directly to your User Wallet balance.</p>
+
+      <div class="reason-box">
+        <span>Reason for Cancellation</span>
+        <p>{{reason}}</p>
+      </div>
+
+      <div class="pnr-box">
+        <span>CANCELLED PNR</span>
+        <strong>{{pnr}}</strong>
+      </div>
+
+      <table class="details-table">
+        <tr>
+          <td class="label">Route</td>
+          <td><strong>{{source}} &rarr; {{destination}}</strong></td>
+        </tr>
+        <tr>
+          <td class="label">Trip Date</td>
+          <td>{{departureDate}}</td>
+        </tr>
+        <tr>
+          <td class="label">100% Full Refund</td>
+          <td><strong style="color: #16a34a;">INR {{refundAmount}}</strong></td>
+        </tr>
+        <tr>
+          <td class="label">Refund Destination</td>
+          <td><strong style="color: #0284c7;">User Wallet Balance</strong></td>
+        </tr>
+      </table>
+
+      <p style="margin-top: 25px;">Your credited wallet balance is immediately available to book any alternative bus trip on our platform. We sincerely apologize for the inconvenience.</p>
+    </div>
+    <div class="footer">
+      <p>&copy; 2026 Bus Ticket Booking System.</p>
+    </div>
+  </div>
+</body>
+</html>

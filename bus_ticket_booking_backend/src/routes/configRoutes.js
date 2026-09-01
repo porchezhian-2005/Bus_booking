@@ -9,16 +9,27 @@ const router = express.Router();
  * @swagger
  * /api/config:
  *   get:
- *     summary: View system configuration settings (wallet max %, referral reward)
- *     tags: [System Configuration]
+ *     summary: View system configuration settings [Admin Authorized]
+ *     description: Retrieve global system configuration settings (wallet max usage % and referral reward amount).
+ *     tags: [Admin - Configuration]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Current system settings returned
+ *         description: Current system configuration settings returned
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data: { $ref: '#/components/schemas/SystemConfig' }
+ *       403:
+ *         description: Forbidden (Admin role required)
  *   put:
- *     summary: Admin update system configuration settings
- *     tags: [System Configuration]
+ *     summary: Admin update system configuration settings [Admin Authorized]
+ *     description: Update global system configuration settings (wallet max usage % and referral reward amount).
+ *     tags: [Admin - Configuration]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -33,8 +44,42 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: Configuration updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data: { $ref: '#/components/schemas/SystemConfig' }
+ *       403:
+ *         description: Forbidden (Admin role required)
  */
-router.get("/", authenticateJWT, getSystemConfig);
-router.put("/", authenticateJWT, authorizeRoles("admin"), updateSystemConfig);
+import Joi from "joi";
+
+export const updateConfigSchema = Joi.object({
+  walletMaxUsagePercent: Joi.number().min(0).max(100).optional().messages({
+    "number.min": "Wallet max usage percent cannot be negative.",
+    "number.max": "Wallet max usage percent cannot exceed 100%.",
+  }),
+  referralAmount: Joi.number().min(0).optional().messages({
+    "number.min": "Referral amount cannot be negative.",
+  }),
+}).min(1);
+
+export const validateUpdateConfig = (req, res, next) => {
+  const result = updateConfigSchema.validate(req.body);
+  if (result.error) {
+    return res.status(400).json({
+      success: false,
+      message: result.error.details[0].message,
+    });
+  }
+  req.body = result.value;
+  next();
+};
+
+router.get("/", authenticateJWT, authorizeRoles("admin"), getSystemConfig);
+router.put("/", authenticateJWT, authorizeRoles("admin"), validateUpdateConfig, updateSystemConfig);
+
 
 export default router;

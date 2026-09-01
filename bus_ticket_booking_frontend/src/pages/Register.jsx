@@ -80,14 +80,14 @@ export const Register = () => {
               <label className="block text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <User className="w-3.5 h-3.5 text-rose-500" /> Full Name
               </label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 rounded-xl glass-input text-xs font-medium" placeholder="Enter Full Name" required />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 rounded-xl glass-input text-xs font-medium" placeholder="Enter full name (e.g., John Doe)" required />
             </div>
 
             <div>
               <label className="block text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Mail className="w-3.5 h-3.5 text-rose-500" /> Email Address
               </label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl glass-input text-xs font-medium" placeholder="john@example.com" required />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl glass-input text-xs font-medium" placeholder="Enter email address (e.g., john@example.com)" required />
             </div>
 
             <div>
@@ -102,7 +102,7 @@ export const Register = () => {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                   className="w-full px-3 py-3 bg-transparent text-xs font-bold tracking-widest text-white focus:outline-none"
-                  placeholder="9042075600"
+                  placeholder="Enter 10-digit mobile number (e.g., 9876543210)"
                   required
                 />
               </div>
@@ -118,7 +118,7 @@ export const Register = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 pr-10 rounded-xl glass-input text-xs font-bold"
-                  placeholder="••••••••"
+                  placeholder="Enter password (minimum 6 characters)"
                   required
                 />
                 <button
@@ -136,7 +136,7 @@ export const Register = () => {
               <label className="block text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Share2 className="w-3.5 h-3.5 text-emerald-400" /> Referral Code (Optional - Earn ₹500)
               </label>
-              <input type="text" value={referralCode} onChange={(e) => setReferralCode(e.target.value.toUpperCase())} className="w-full px-4 py-3 rounded-xl glass-input text-xs font-bold uppercase" placeholder="e.g. REDBUS500" />
+              <input type="text" value={referralCode} onChange={(e) => setReferralCode(e.target.value.toUpperCase())} className="w-full px-4 py-3 rounded-xl glass-input text-xs font-bold uppercase" placeholder="Enter referral code if available (e.g., REDBUS500)" />
             </div>
 
             <button type="submit" disabled={loading} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs tracking-wider shadow-lg shadow-rose-600/30 transition-all cursor-pointer">
@@ -147,7 +147,7 @@ export const Register = () => {
           <form onSubmit={handleOtpVerify} className="space-y-4">
             <p className="text-xs text-slate-400 text-center mb-4">Please enter the 6-digit OTP code sent to <strong>{email}</strong></p>
             <div className="flex gap-2">
-              <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)} className="w-full px-4 py-3 rounded-xl glass-input text-center text-xl font-black tracking-widest text-rose-400" placeholder="123456" maxLength={6} required />
+              <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)} className="w-full px-4 py-3 rounded-xl glass-input text-center text-xl font-black tracking-widest text-rose-400" placeholder="Enter 6-digit OTP code (e.g., 123456)" maxLength={6} required />
               <button type="submit" disabled={loading} className="px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs transition-all shadow-lg shadow-emerald-600/30 cursor-pointer whitespace-nowrap">
                 {loading ? "..." : "VERIFY"}
               </button>

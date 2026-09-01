@@ -172,7 +172,7 @@ export const Login = () => {
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl glass-input text-xs font-medium"
-                    placeholder="user@example.com"
+                    placeholder="Enter registered email address (e.g., user@example.com)"
                     required
                   />
                 </div>
@@ -201,7 +201,7 @@ export const Login = () => {
                     value={forgotOtp}
                     onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, ""))}
                     className="w-full px-4 py-3 rounded-xl glass-input text-center text-xl font-black tracking-widest text-rose-400"
-                    placeholder="123456"
+                    placeholder="Enter 6-digit OTP code (e.g., 123456)"
                     required
                   />
                 </div>
@@ -229,7 +229,7 @@ export const Login = () => {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="w-full px-4 py-3 pr-10 rounded-xl glass-input text-xs font-bold"
-                      placeholder="Enter New Password (min 6 chars)"
+                      placeholder="Enter new password (minimum 6 characters)"
                       required
                     />
                     <button
@@ -252,7 +252,7 @@ export const Login = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="w-full px-4 py-3 pr-10 rounded-xl glass-input text-xs font-bold"
-                      placeholder="Confirm New Password"
+                      placeholder="Confirm new password"
                       required
                     />
                     <button
@@ -343,7 +343,7 @@ export const Login = () => {
                   type="email"
                   {...register("email", { required: true })}
                   className="w-full px-4 py-3 rounded-xl glass-input text-xs font-bold"
-                  placeholder="name@example.com"
+                  placeholder={portal === "USER" ? "Enter user email address (e.g., john@example.com)" : "Enter admin email address (e.g., admin@busticket.com)"}
                   autoComplete="off"
                   required
                 />

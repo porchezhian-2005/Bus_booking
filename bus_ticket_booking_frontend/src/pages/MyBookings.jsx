@@ -91,11 +91,11 @@ export const MyBookings = () => {
                 <span
                   className={`px-3 py-1.5 rounded-full text-xs font-black tracking-wider border uppercase ${
                     booking.bookingStatus === "CONFIRMED"
-                      ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/50"
-                      : "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/50"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/50"
+                      : "bg-rose-100 text-rose-800 border-rose-400 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/50"
                   }`}
                 >
-                  ✓ {booking.bookingStatus}
+                  {booking.bookingStatus === "CONFIRMED" ? "✓ CONFIRMED" : "✕ CANCELLED"}
                 </span>
               </div>
 

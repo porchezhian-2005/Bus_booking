@@ -8,6 +8,7 @@ import ReferralEntity from "../models/Referral.js";
 import SystemConfigEntity from "../models/SystemConfig.js";
 import BusEntity from "../models/Bus.js";
 import RouteEntity from "../models/Route.js";
+import RoutePointEntity from "../models/RoutePoint.js";
 import TripEntity from "../models/Trip.js";
 import SeatEntity from "../models/Seat.js";
 import CouponEntity from "../models/Coupon.js";
@@ -35,6 +36,7 @@ export const AppDataSource = new DataSource({
     SystemConfigEntity,
     BusEntity,
     RouteEntity,
+    RoutePointEntity,
     TripEntity,
     SeatEntity,
     CouponEntity,

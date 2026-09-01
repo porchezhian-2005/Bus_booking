@@ -2,9 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import bookingApi from "../services/bookingApi";
 import walletApi from "../services/walletApi";
+import loadRazorpayScript from "../services/razorpay";
+import toast from "react-hot-toast";
 import { User, Ticket, CreditCard, Tag, Wallet as WalletIcon, ShieldAlert, Bus, CheckCircle2, ChevronRight, Sparkles } from "lucide-react";
 
 export const Checkout = () => {
+
   const location = useLocation();
   const navigate = useNavigate();
   const { trip, selectedSeats } = location.state || {};
@@ -14,7 +17,7 @@ export const Checkout = () => {
       seatNumber: seat.seatNumber,
       name: "",
       age: "",
-      gender: "Male",
+      gender: "",
     }))
   );
 
@@ -94,6 +97,9 @@ export const Checkout = () => {
   };
 
   const handleBookingSubmission = async () => {
+
+    if (loading) return; // Duplicate submission protection
+
     // Validate passengers input
     for (let i = 0; i < passengers.length; i++) {
       if (!passengers[i].name || !passengers[i].age) {
@@ -105,23 +111,108 @@ export const Checkout = () => {
 
     setLoading(true);
     setError("");
+
+    const baseBookingPayload = {
+      tripId: trip.id,
+      seatIds: selectedSeats.map((s) => s.id),
+      passengers,
+      couponCode: couponCode || null,
+      useWallet,
+    };
+
+    // Case 1: 100% covered by Wallet or Coupon (No payment gateway needed)
+    if (finalPayable === 0) {
+      try {
+        const res = await bookingApi.createBooking(baseBookingPayload);
+        toast.success("Booking confirmed successfully!");
+        navigate("/confirmation", { state: { booking: res.data.data } });
+      } catch (err) {
+        setError(err.response?.data?.message || "Booking creation failed");
+        toast.error(err.response?.data?.message || "Booking creation failed");
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Case 2: Remaining cost > 0 -> Razorpay TEST Payment Flow
     try {
-      const bookingData = {
-        tripId: trip.id,
-        seatIds: selectedSeats.map((s) => s.id),
-        passengers,
-        couponCode: couponCode || null,
-        useWallet,
+      // Step A: Request Razorpay TEST Order from backend
+      toast.loading("Creating Razorpay TEST order...", { id: "checkout-process" });
+      const orderRes = await bookingApi.createRazorpayOrder(finalPayable);
+      const orderData = orderRes.data?.data || orderRes.data;
+
+      if (!orderData || !orderData.orderId) {
+        throw new Error("Failed to generate Razorpay TEST order ID from server");
+      }
+
+      // Step B: Load Razorpay SDK Script
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        throw new Error("Razorpay SDK failed to load. Please check your network connection.");
+      }
+
+      toast.dismiss("checkout-process");
+
+      // Step C: Initialize Razorpay TEST Checkout Modal
+      const options = {
+        key: orderData.key || "rzp_test_dummy_key",
+        amount: orderData.amount || Math.round(finalPayable * 100),
+        currency: orderData.currency || "INR",
+        name: "RedBus Ticket Booking",
+        description: `Booking ${selectedSeats.length} Seat(s) for ${trip?.bus?.name || "Fleet Bus"} (TEST Mode)`,
+        order_id: orderData.orderId,
+        handler: async function (response) {
+          try {
+            toast.loading("Verifying payment with backend...", { id: "verify-process" });
+            const verifyPayload = {
+              ...baseBookingPayload,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            };
+
+            // Step D: Send payment signature & booking data to backend verification API
+            const bookingRes = await bookingApi.createBooking(verifyPayload);
+            toast.success("Payment verified & booking confirmed!", { id: "verify-process" });
+            navigate("/confirmation", { state: { booking: bookingRes.data.data } });
+          } catch (verifyErr) {
+            console.error("Backend Verification Failed:", verifyErr);
+            const errMsg = verifyErr.response?.data?.message || "Payment verification failed!";
+            setError(errMsg);
+            toast.error(errMsg, { id: "verify-process" });
+            setLoading(false);
+          }
+        },
+        prefill: {
+          name: passengers[0]?.name || "Test Passenger",
+          email: "user@example.com",
+        },
+        theme: {
+          color: "#f43f5e",
+        },
+        modal: {
+          ondismiss: function () {
+            setLoading(false);
+            toast.error("Payment cancelled by user.");
+          },
+        },
       };
 
-      const res = await bookingApi.createBooking(bookingData);
-      navigate("/confirmation", { state: { booking: res.data.data } });
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", function (response) {
+        setLoading(false);
+        toast.error(response.error?.description || "Payment failed!");
+      });
+      rzp.open();
     } catch (err) {
-      setError(err.response?.data?.message || "Booking creation failed");
-    } finally {
+      console.error("Razorpay Order Setup Error:", err);
+      toast.dismiss("checkout-process");
+      setError(err.response?.data?.message || err.message || "Payment setup failed");
+      toast.error(err.response?.data?.message || err.message || "Payment setup failed");
       setLoading(false);
     }
   };
+
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -178,7 +269,7 @@ export const Checkout = () => {
                       <label className="block text-[11px] font-semibold text-slate-400 mb-1">Full Name</label>
                       <input
                         type="text"
-                        placeholder="Enter Full Name"
+                        placeholder="Enter passenger full name (e.g., John Doe)"
                         value={p.name}
                         onChange={(e) => handlePassengerChange(idx, "name", e.target.value)}
                         className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs font-medium"
@@ -191,7 +282,7 @@ export const Checkout = () => {
                         type="number"
                         min="1"
                         max="120"
-                        placeholder="Age"
+                        placeholder="Enter age (e.g., 25)"
                         value={p.age}
                         onChange={(e) => handlePassengerChange(idx, "age", e.target.value)}
                         onBlur={(e) => {
@@ -210,7 +301,9 @@ export const Checkout = () => {
                         value={p.gender}
                         onChange={(e) => handlePassengerChange(idx, "gender", e.target.value)}
                         className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs font-bold cursor-pointer"
+                        required
                       >
+                        <option value="" disabled>Select gender</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                         <option value="Other">Other</option>

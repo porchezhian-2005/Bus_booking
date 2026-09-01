@@ -97,35 +97,13 @@ export const verifyRazorpayPayment = async (req, res) => {
 };
 
 /**
- * 3. Add Money to Wallet via Razorpay
+/**
+ * 3. Add Money to Wallet via Razorpay (Disabled)
  */
 export const addMoneyToWalletViaRazorpay = async (req, res) => {
-  try {
-    const { amount, razorpay_payment_id } = req.body;
-
-    const result = await walletService.addMoney(
-      req.user.id,
-      parseFloat(amount),
-      `RAZORPAY-${razorpay_payment_id || Date.now()}`
-    );
-
-    await transactionService.createTransaction({
-      userId: req.user.id,
-      amount: parseFloat(amount),
-      paymentMethod: "RAZORPAY_GATEWAY",
-      paymentStatus: "SUCCESS",
-      gatewayReferenceId: razorpay_payment_id || `RAZORPAY-${Date.now()}`,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Money added to wallet successfully via Razorpay!",
-      data: { newBalance: result.newBalance },
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Failed to add money via Razorpay",
-    });
-  }
+  return res.status(400).json({
+    success: false,
+    message: "Manual wallet top-up is disabled. Wallet balance is earned exclusively through Referral Rewards and Ticket Cancellation Refunds.",
+  });
 };
+

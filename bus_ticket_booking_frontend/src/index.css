@@ -72,7 +72,9 @@ body.day-mode div.text-slate-400 {
 
 body.day-mode .bg-rose-600,
 body.day-mode .bg-rose-500,
-body.day-mode .bg-red-600 {
+body.day-mode .bg-red-600,
+body.day-mode [class*="from-rose-600"],
+body.day-mode [class*="bg-rose-600"] {
   color: #ffffff !important;
 }
 
@@ -162,7 +164,9 @@ body.day-mode .text-slate-500 {
   color: #475569 !important;
 }
 
-body.day-mode .text-white {
+body.day-mode .text-white,
+body.day-mode [class*="text-white"],
+body.day-mode [class*="dark:text-white"] {
   color: #0f172a !important;
 }
 

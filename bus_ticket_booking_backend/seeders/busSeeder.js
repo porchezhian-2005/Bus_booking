@@ -18,7 +18,7 @@ export const seedBusesAndTrips = async () => {
 
     const existingTripsCount = await tripRepository.count();
     if (existingTripsCount > 0) {
-      console.log(`ℹ️ PostgreSQL trips table already has ${existingTripsCount} trips. Skipping re-seeding.`);
+      console.log(`PostgreSQL trips table already has ${existingTripsCount} trips. Skipping re-seeding.`);
       return;
     }
 
@@ -96,17 +96,15 @@ export const seedBusesAndTrips = async () => {
         const seats = [];
         for (let i = 1; i <= bus.totalSeats; i++) {
           let seatType = "SEATER";
-          let mult = 1.0;
           if (bus.busType.toLowerCase().includes("sleeper")) {
             seatType = i <= bus.totalSeats / 2 ? "SLEEPER_LOWER" : "SLEEPER_UPPER";
-            mult = i <= bus.totalSeats / 2 ? 1.2 : 1.1;
           }
           seats.push(
             seatRepository.create({
               tripId: savedTrip.id,
               seatNumber: `S${i}`,
               seatType: seatType,
-              price: (parseFloat(tData.basePrice) * mult).toFixed(2),
+              price: parseFloat(tData.basePrice).toFixed(2),
               status: i % 5 === 0 ? "BOOKED" : "AVAILABLE",
             })
           );

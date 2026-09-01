@@ -5,6 +5,7 @@ export const adminApi = {
   addBus: (data) => api.post("/buses", data),
   updateBus: (id, data) => api.put(`/buses/${id}`, data),
   deleteBus: (id) => api.delete(`/buses/${id}`),
+  decommissionBus: (id, data) => api.post(`/buses/${id}/decommission`, data),
   addRoute: (data) => api.post("/buses/routes", data),
   createTrip: (data) => api.post("/buses/trips", data),
   createCoupon: (data) => api.post("/coupons", data),

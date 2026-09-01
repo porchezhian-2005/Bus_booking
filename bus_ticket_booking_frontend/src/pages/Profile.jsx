@@ -193,7 +193,7 @@ export const Profile = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-3 rounded-xl glass-input text-xs font-bold"
-              placeholder="Enter Full Name"
+              placeholder="Enter full name (e.g., John Doe)"
               required
             />
           </div>
@@ -210,7 +210,7 @@ export const Profile = () => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                 className="w-full px-3 py-3 bg-transparent text-xs font-bold tracking-widest text-white focus:outline-none"
-                placeholder="9042075600"
+                placeholder="Enter 10-digit mobile number (e.g., 9876543210)"
                 required
               />
             </div>
@@ -244,7 +244,7 @@ export const Profile = () => {
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl glass-input text-xs font-bold"
-                placeholder="Enter new email address"
+                placeholder="Enter new email address (e.g., john@example.com)"
                 required
               />
               <button
@@ -269,8 +269,8 @@ export const Profile = () => {
                   maxLength={6}
                   value={emailOtp}
                   onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, ""))}
-                  className="w-full px-4 py-2.5 rounded-xl glass-input text-center text-lg font-black tracking-widest text-rose-400"
-                  placeholder="123456"
+                  className="w-full px-4 py-3 rounded-xl glass-input text-center text-lg font-black tracking-widest text-rose-400"
+                  placeholder="Enter 6-digit OTP code (e.g., 123456)"
                   required
                 />
                 <button
@@ -295,8 +295,8 @@ export const Profile = () => {
             <span>RedBus Refer & Earn Program</span>
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Share your unique referral code. When your friend completes their first bus ticket booking, both of you earn{" "}
-            <strong className="text-emerald-400">₹500</strong> directly in your RedBus Wallet!
+            Share your unique referral code. When your friend completes their first bus ticket booking,{" "}
+            <strong className="text-emerald-400">₹500</strong> referral reward is credited directly to your RedBus Wallet!
           </p>
         </div>
 
@@ -337,6 +337,37 @@ export const Profile = () => {
             <div className="text-xl font-black text-emerald-400">₹{referrals?.totalEarnings || 0}</div>
           </div>
         </div>
+
+        {/* Referred Friends Status Table */}
+        {referrals?.referredUsers && referrals.referredUsers.length > 0 && (
+          <div className="space-y-3 pt-2 border-t border-white/5">
+            <div className="text-xs font-bold text-slate-300">Referred Friends & Status</div>
+            <div className="space-y-2">
+              {referrals.referredUsers.map((u) => (
+                <div key={u.referralId} className="p-3.5 rounded-2xl bg-slate-950/80 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div>
+                    <div className="font-extrabold text-white">{u.refereeName} <span className="text-[11px] text-slate-400 font-normal">({u.refereeEmail})</span></div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Joined {new Date(u.createdAt).toLocaleDateString()}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                      u.status === "SUCCESSFUL"
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                        : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                    }`}>
+                      {u.status === "SUCCESSFUL" ? "✓ SUCCESSFUL" : "⏳ PENDING 1st BOOKING"}
+                    </span>
+                    {u.status === "SUCCESSFUL" && (
+                      <span className="text-xs font-black text-emerald-400">
+                        +₹{u.rewardAmount} Credited
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

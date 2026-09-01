@@ -4,20 +4,21 @@ export class ConfigService {
   }
 
   async getConfig() {
-    let configs = await this.configModel.find();
-    let config;
+    let config = await this.configModel.findOne({ where: {}, order: { updatedAt: "DESC" } });
 
-    if (!configs || configs.length === 0) {
+    if (!config) {
       const defaultWalletPercent = parseFloat(process.env.DEFAULT_MAX_WALLET_USAGE_PERCENT || "20");
       const defaultReferralAmount = parseFloat(process.env.DEFAULT_REFERRAL_REWARD_AMOUNT || "500");
 
-      const newConfig = this.configModel.create({
-        walletMaxUsagePercent: defaultWalletPercent,
-        referralAmount: defaultReferralAmount,
-      });
-      config = await this.configModel.save(newConfig);
-    } else {
-      config = configs[0];
+      try {
+        const newConfig = this.configModel.create({
+          walletMaxUsagePercent: defaultWalletPercent,
+          referralAmount: defaultReferralAmount,
+        });
+        config = await this.configModel.save(newConfig);
+      } catch (err) {
+        config = await this.configModel.findOne({ where: {}, order: { updatedAt: "DESC" } });
+      }
     }
 
     return {

@@ -4,8 +4,8 @@ import { useNavigate } from "react-router";
 import { adminLoginUser } from "../features/auth/authSlice";
 
 export const AdminLogin = () => {
-  const [email, setEmail] = useState("admin@busticket.com");
-  const [password, setPassword] = useState("Admin@123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { loading, error } = useSelector((state) => state.auth);
@@ -33,6 +33,7 @@ export const AdminLogin = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 rounded-xl glass-input"
+              placeholder="Enter admin email address (e.g., admin@busticket.com)"
               required
             />
           </div>
@@ -44,6 +45,7 @@ export const AdminLogin = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 rounded-xl glass-input"
+              placeholder="Enter admin password"
               required
             />
           </div>

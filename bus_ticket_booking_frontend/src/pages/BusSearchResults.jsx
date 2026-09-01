@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router";
@@ -23,14 +24,19 @@ export const BusSearchResults = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Search parameters state passed via router state or query
-  const searchParams = location.state || {};
-  const [source, setSource] = useState(searchParams.source || "");
-  const [destination, setDestination] = useState(searchParams.destination || "");
-  const [date, setDate] = useState(searchParams.date || new Date().toISOString().split("T")[0]);
+  // Parse search parameters from location.state OR URL query string
+  const queryParams = new URLSearchParams(location.search);
+  const initialSource = location.state?.source || queryParams.get("source") || "";
+  const initialDestination = location.state?.destination || queryParams.get("destination") || "";
+  const initialDate = location.state?.date || queryParams.get("date") || new Date().toISOString().split("T")[0];
+
+  const [source, setSource] = useState(initialSource);
+  const [destination, setDestination] = useState(initialDestination);
+  const [date, setDate] = useState(initialDate);
 
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [routeErrorMessage, setRouteErrorMessage] = useState(null);
 
   // Filters & Pagination State
   const [selectedType, setSelectedType] = useState("ALL"); // ALL, AC, SLEEPER, SEATER
@@ -50,11 +56,63 @@ export const BusSearchResults = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchTripsFromBackend(source, destination, date, selectedType, sortBy, 1);
-  }, [source, destination, date, selectedType, sortBy]);
+    const qParams = new URLSearchParams(location.search);
+    const src = location.state?.source !== undefined ? location.state.source : (qParams.get("source") || "");
+    const dst = location.state?.destination !== undefined ? location.state.destination : (qParams.get("destination") || "");
+    const dt = location.state?.date || qParams.get("date") || new Date().toISOString().split("T")[0];
+
+    setSource(src);
+    setDestination(dst);
+    setDate(dt);
+
+    fetchTripsFromBackend(src, dst, dt, selectedType, sortBy, 1);
+  }, [location.search, location.state, selectedType, sortBy]);
+
+
+  // Helper to calculate exact journey duration from departure & arrival time
+  const calculateTripDuration = (deptTime, arrTime, routeDurationHours) => {
+    if (!deptTime || !arrTime) return "6h 30m";
+    
+    try {
+      const parseTimeToMinutes = (timeStr) => {
+        let clean = timeStr.trim().toUpperCase();
+        let isPM = clean.includes("PM");
+        let isAM = clean.includes("AM");
+        clean = clean.replace("AM", "").replace("PM", "").trim();
+
+        let parts = clean.split(":");
+        let hours = parseInt(parts[0], 10);
+        let minutes = parseInt(parts[1] || "0", 10);
+
+        if (isPM && hours < 12) hours += 12;
+        if (isAM && hours === 12) hours = 0;
+
+        return hours * 60 + minutes;
+      };
+
+      let start = parseTimeToMinutes(deptTime);
+      let end = parseTimeToMinutes(arrTime);
+
+      if (end < start) end += 24 * 60;
+
+      let diffMinutes = end - start;
+      let hours = Math.floor(diffMinutes / 60);
+      let minutes = diffMinutes % 60;
+
+      return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    } catch (e) {
+      if (routeDurationHours) {
+        let h = Math.floor(parseFloat(routeDurationHours));
+        let m = Math.round((parseFloat(routeDurationHours) - h) * 60);
+        return m > 0 ? `${h}h ${m}m` : `${h}h`;
+      }
+      return "6h 30m";
+    }
+  };
 
   const fetchTripsFromBackend = async (srcCity, dstCity, tripDate, bType, sOption, pageNum = 1) => {
     setLoading(true);
+    setRouteErrorMessage(null);
     try {
       const params = {
         source: srcCity,
@@ -65,7 +123,20 @@ export const BusSearchResults = () => {
         page: pageNum,
         limit: PAGE_LIMIT,
       };
-      let res = await busApi.searchTrips(params).catch(() => null);
+      let res = await busApi.searchTrips(params).catch((err) => err.response || null);
+
+      if (res?.data?.success === false || res?.status >= 400) {
+        setTrips([]);
+        setRouteErrorMessage(res?.data?.message || "Route is not available.");
+        setPaginationMeta({
+          totalCount: 0,
+          totalPages: 1,
+          currentPage: 1,
+          limit: PAGE_LIMIT,
+        });
+        return;
+      }
+
       let data = res?.data?.data || [];
       let pageInfo = res?.data?.pagination || {
         totalCount: data.length,
@@ -79,6 +150,7 @@ export const BusSearchResults = () => {
     } catch (err) {
       console.error("Backend Trips Search API Error:", err);
       setTrips([]);
+      setRouteErrorMessage(err?.response?.data?.message || "Failed to fetch trips.");
       setPaginationMeta({
         totalCount: 0,
         totalPages: 1,
@@ -89,6 +161,7 @@ export const BusSearchResults = () => {
       setLoading(false);
     }
   };
+
 
   const handleSearchSubmit = (e) => {
     if (e) e.preventDefault();
@@ -236,50 +309,53 @@ export const BusSearchResults = () => {
           </div>
         </div>
 
-        {/* Filter & Sorting Controls Toolbar */}
-        <div className="glass-card p-4 rounded-2xl border border-slate-300 dark:border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm">
-          {/* Bus Type Filters */}
-          <div className="flex flex-wrap items-center gap-2 text-xs font-bold w-full sm:w-auto">
-            <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1 mr-1 uppercase tracking-wider text-[11px]">
-              <Filter className="w-3.5 h-3.5 text-rose-500" /> Bus Category:
-            </span>
-            {[
-              { id: "ALL", label: "All Buses" },
-              { id: "AC", label: "AC" },
-              { id: "SLEEPER", label: "Sleeper" },
-              { id: "SEATER", label: "Seater" },
-            ].map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setSelectedType(f.id)}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer font-extrabold ${
-                  selectedType === f.id
-                    ? "bg-rose-600 text-white font-black shadow-md shadow-rose-600/30"
-                    : "bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:border-rose-500"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+        {/* Filter & Sorting Controls Toolbar - Shown only when buses are available */}
+        {trips.length > 0 && (
+          <div className="glass-card p-4 rounded-2xl border border-slate-300 dark:border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm">
+            {/* Bus Type Filters */}
+            <div className="flex flex-wrap items-center gap-2 text-xs font-bold w-full sm:w-auto">
+              <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1 mr-1 uppercase tracking-wider text-[11px]">
+                <Filter className="w-3.5 h-3.5 text-rose-500" /> Bus Category:
+              </span>
+              {[
+                { id: "ALL", label: "All Buses" },
+                { id: "AC", label: "AC" },
+                { id: "SLEEPER", label: "Sleeper" },
+                { id: "SEATER", label: "Seater" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setSelectedType(f.id)}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer font-extrabold ${
+                    selectedType === f.id
+                      ? "bg-rose-600 text-white font-black shadow-md shadow-rose-600/30"
+                      : "bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:border-rose-500"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
 
-          {/* Sorting Options */}
-          <div className="flex items-center gap-2 text-xs font-bold w-full sm:w-auto justify-end">
-            <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1 uppercase tracking-wider text-[11px]">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" /> Sort By:
-            </span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs font-black focus:ring-2 focus:ring-rose-500 cursor-pointer"
-            >
-              <option value="">Default Order</option>
-              <option value="CHEAPEST">💰 Lowest Ticket Fare</option>
-              <option value="EARLIEST">⏰ Departure Time</option>
-              <option value="SEATS">💺 Most Seats Available</option>
-            </select>
+            {/* Sorting Options */}
+            <div className="flex items-center gap-2 text-xs font-bold w-full sm:w-auto justify-end">
+              <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1 uppercase tracking-wider text-[11px]">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" /> Sort By:
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs font-black focus:ring-2 focus:ring-rose-500 cursor-pointer"
+              >
+                <option value="">Default Order</option>
+                <option value="CHEAPEST">💰 Lowest Ticket Fare</option>
+                <option value="EARLIEST">⏰ Departure Time</option>
+                <option value="SEATS">💺 Most Seats Available</option>
+              </select>
+            </div>
           </div>
-        </div>
+        )}
+
 
         {/* Bus Search Results */}
         <div className="space-y-4">
@@ -305,9 +381,11 @@ export const BusSearchResults = () => {
           ) : trips.length === 0 ? (
             <div className="text-center py-12 glass-card rounded-2xl border border-slate-200 dark:border-white/10 space-y-3">
               <Bus className="w-12 h-12 text-slate-400 dark:text-slate-600 mx-auto" />
-              <div className="text-lg font-bold text-slate-900 dark:text-white">No Buses Available</div>
-              <div className="text-xs text-slate-600 dark:text-slate-400">
-                No scheduled bus trips match your search criteria. Please try another route or date.
+              <div className="text-lg font-bold text-slate-900 dark:text-white">
+                {routeErrorMessage ? "Route Not Available" : "No Buses Available"}
+              </div>
+              <div className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                {routeErrorMessage || "No scheduled buses match your search criteria for this date. Please try another date or route."}
               </div>
             </div>
           ) : (
@@ -355,7 +433,7 @@ export const BusSearchResults = () => {
                     {/* Duration graphic */}
                     <div className="text-center">
                       <div className="text-[11px] text-slate-300 font-semibold flex items-center justify-center gap-1">
-                        <Clock className="w-3 h-3 text-rose-400" /> {t.route?.durationHours ? `${t.route.durationHours}h` : "6h 30m"}
+                        <Clock className="w-3 h-3 text-rose-400" /> {calculateTripDuration(t.departureTime, t.arrivalTime, t.route?.durationHours)}
                       </div>
                       <div className="w-full h-0.5 bg-gradient-to-r from-rose-500 via-slate-600 to-rose-500 my-1 relative">
                         <div className="w-2 h-2 rounded-full bg-rose-500 absolute left-0 -top-0.75"></div>
@@ -378,14 +456,19 @@ export const BusSearchResults = () => {
                       <div>
                         <span className="text-[11px] text-slate-300 block">Starts from</span>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-2xl font-black text-white">₹{t.basePrice}</span>
-                          <span className="text-xs text-slate-400 line-through">₹{Math.round(parseFloat(t.basePrice) * 1.2)}</span>
+                          <span className="text-2xl font-black text-white">₹{parseFloat(t.basePrice).toFixed(2)}</span>
+                          {t.originalPrice && parseFloat(t.originalPrice) > parseFloat(t.basePrice) && (
+                            <span className="text-xs text-slate-400 line-through">
+                              ₹{parseFloat(t.originalPrice).toFixed(2)}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <span className="px-3 py-1 rounded-lg bg-rose-600 text-white border border-rose-500 text-xs font-black shadow-md">
                         {t.availableSeats !== undefined ? t.availableSeats : 25} Seats left
                       </span>
                     </div>
+
 
                     <button
                       onClick={() => handleOpenSeatMap(t)}

@@ -34,6 +34,11 @@ export const BusEntity = new EntitySchema({
       type: "simple-array", // e.g. "WiFi,Charging Point,Water Bottle,Blanket"
       nullable: true,
     },
+    status: {
+      type: "varchar",
+      length: 20,
+      default: "ACTIVE", // "ACTIVE", "DECOMMISSIONED"
+    },
     createdAt: {
       type: "timestamp",
       createDate: true,

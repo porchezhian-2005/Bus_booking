@@ -25,25 +25,50 @@ export const Home = () => {
 
   const [walletBalance, setWalletBalance] = useState(0);
   const [upcomingBooking, setUpcomingBooking] = useState(null);
+  const [isWeekendMenuOpen, setIsWeekendMenuOpen] = useState(false);
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+
+  const tmrDate = new Date(now);
+  tmrDate.setDate(now.getDate() + 1);
+  const tmrStr = tmrDate.toISOString().split("T")[0];
+
+  const dayOfWeek = now.getDay(); // 0: Sun, 1: Mon, ... 6: Sat
+  const satOffset = dayOfWeek === 6 ? 0 : 6 - dayOfWeek;
+  const sunOffset = dayOfWeek === 6 ? 1 : 7 - dayOfWeek;
+
+  const satDate = new Date(now);
+  satDate.setDate(now.getDate() + satOffset);
+  const satStr = satDate.toISOString().split("T")[0];
+  const satDisplay = satDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const sunDate = new Date(now);
+  sunDate.setDate(now.getDate() + sunOffset);
+  const sunStr = sunDate.toISOString().split("T")[0];
+  const sunDisplay = sunDate.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   const {
     register,
     handleSubmit,
     setValue,
     watch,
+    formState: { errors },
   } = useForm({
     defaultValues: {
       source: "",
       destination: "",
-      date: todayStr,
+      date: "",
     },
   });
 
   const sourceVal = watch("source");
   const destVal = watch("destination");
   const dateVal = watch("date");
+
+  const isTodaySelected = Boolean(dateVal && dateVal === todayStr);
+  const isTomorrowSelected = Boolean(dateVal && dateVal === tmrStr && !isTodaySelected);
+  const isWeekendSelected = Boolean(dateVal && (dateVal === satStr || dateVal === sunStr) && !isTodaySelected && !isTomorrowSelected);
 
   useEffect(() => {
     if (token) {
@@ -74,7 +99,12 @@ export const Home = () => {
   };
 
   const onSubmit = (data) => {
-    navigate("/bus-results", {
+    const params = new URLSearchParams();
+    if (data.source) params.set("source", data.source);
+    if (data.destination) params.set("destination", data.destination);
+    if (data.date) params.set("date", data.date);
+
+    navigate(`/bus-results?${params.toString()}`, {
       state: { source: data.source, destination: data.destination, date: data.date },
     });
   };
@@ -82,8 +112,8 @@ export const Home = () => {
   const swapCities = () => {
     const curSource = sourceVal;
     const curDest = destVal;
-    setValue("source", curDest);
-    setValue("destination", curSource);
+    setValue("source", curDest, { shouldValidate: true });
+    setValue("destination", curSource, { shouldValidate: true });
   };
 
   return (
@@ -104,9 +134,9 @@ export const Home = () => {
           </div>
 
           {/* RedBus Search Box Card */}
-          <div className="glass-card p-6 sm:p-8 rounded-3xl border border-rose-500/30 shadow-2xl relative">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+          <div className="glass-card p-6 sm:p-8 rounded-3xl border border-rose-500/30 shadow-2xl relative z-30">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
                 {/* Source Input */}
                 <div className="md:col-span-4 relative">
                   <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
@@ -114,15 +144,29 @@ export const Home = () => {
                   </label>
                   <input
                     type="text"
-                    {...register("source", { required: true })}
-                    className="w-full px-5 py-3.5 rounded-2xl glass-input text-base font-bold focus:ring-2 focus:ring-rose-500"
+                    {...register("source", {
+                      required: "Departure city is required.",
+                      validate: (val) => {
+                        if (destVal && val && val.trim().toLowerCase() === destVal.trim().toLowerCase()) {
+                          return "Departure and destination cities must be different.";
+                        }
+                        return true;
+                      },
+                    })}
+                    className={`w-full px-5 py-3.5 rounded-2xl glass-input text-base font-bold transition-all focus:ring-2 ${
+                      errors.source ? "border-rose-500 focus:ring-rose-500" : "focus:ring-rose-500"
+                    }`}
                     placeholder="Enter Departure City (e.g. Chennai)"
-                    required
                   />
+                  {errors.source && (
+                    <p className="text-xs font-extrabold text-rose-500 mt-1.5 flex items-center gap-1">
+                      <span>⚠️</span> {errors.source.message}
+                    </p>
+                  )}
                 </div>
 
                 {/* Swap Button */}
-                <div className="md:col-span-1 flex justify-center my-1 md:my-0">
+                <div className="md:col-span-1 flex justify-center my-1 md:my-0 pt-6">
                   <button
                     type="button"
                     onClick={swapCities}
@@ -140,11 +184,25 @@ export const Home = () => {
                   </label>
                   <input
                     type="text"
-                    {...register("destination", { required: true })}
-                    className="w-full px-5 py-3.5 rounded-2xl glass-input text-base font-bold focus:ring-2 focus:ring-rose-500"
+                    {...register("destination", {
+                      required: "Destination city is required.",
+                      validate: (val) => {
+                        if (sourceVal && val && val.trim().toLowerCase() === sourceVal.trim().toLowerCase()) {
+                          return "Departure and destination cities must be different.";
+                        }
+                        return true;
+                      },
+                    })}
+                    className={`w-full px-5 py-3.5 rounded-2xl glass-input text-base font-bold transition-all focus:ring-2 ${
+                      errors.destination ? "border-rose-500 focus:ring-rose-500" : "focus:ring-rose-500"
+                    }`}
                     placeholder="Enter Destination City (e.g. Bengaluru)"
-                    required
                   />
+                  {errors.destination && (
+                    <p className="text-xs font-extrabold text-rose-500 mt-1.5 flex items-center gap-1">
+                      <span>⚠️</span> {errors.destination.message}
+                    </p>
+                  )}
                 </div>
 
                 {/* Date Input */}
@@ -154,40 +212,111 @@ export const Home = () => {
                   </label>
                   <input
                     type="date"
-                    min={todayStr}
-                    {...register("date", { required: true })}
-                    className="w-full px-5 py-3.5 rounded-2xl glass-input text-base font-bold focus:ring-2 focus:ring-rose-500"
-                    required
+                    {...register("date", {
+                      required: "Journey date is required.",
+                      validate: (val) => {
+                        if (!val) return "Journey date is required.";
+                        if (val < todayStr) {
+                          return "Please select today or a future date.";
+                        }
+                        return true;
+                      },
+                    })}
+                    className={`w-full px-5 py-3.5 rounded-2xl glass-input text-base font-bold transition-all focus:ring-2 ${
+                      errors.date ? "border-rose-500 focus:ring-rose-500" : "focus:ring-rose-500"
+                    }`}
                   />
+                  {errors.date && (
+                    <p className="text-xs font-extrabold text-rose-500 mt-1.5 flex items-center gap-1">
+                      <span>⚠️</span> {errors.date.message}
+                    </p>
+                  )}
                 </div>
               </div>
+
 
               {/* Action Bar & Quick Date Chips */}
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-3 border-t border-white/10">
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-slate-300 font-bold text-sm">Quick Date:</span>
-                  {["Today", "Tomorrow", "Weekend"].map((label, idx) => {
-                    const d = new Date();
-                    if (idx === 1) d.setDate(d.getDate() + 1);
-                    if (idx === 2) d.setDate(d.getDate() + (6 - d.getDay()));
-                    const formatted = d.toISOString().split("T")[0];
-                    return (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => {
-                          setValue("date", formatted);
-                        }}
-                        className={`px-4 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                          dateVal === formatted
-                            ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/30"
-                            : "bg-slate-800/80 text-slate-200 border-slate-700 hover:border-rose-500"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsWeekendMenuOpen(false);
+                      setValue("date", todayStr, { shouldValidate: true });
+                    }}
+                    className={`px-4 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      isTodaySelected
+                        ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/30"
+                        : "bg-slate-800/80 text-slate-200 border-slate-700 hover:border-rose-500"
+                    }`}
+                  >
+                    Today
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsWeekendMenuOpen(false);
+                      setValue("date", tmrStr, { shouldValidate: true });
+                    }}
+                    className={`px-4 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      isTomorrowSelected
+                        ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/30"
+                        : "bg-slate-800/80 text-slate-200 border-slate-700 hover:border-rose-500"
+                    }`}
+                  >
+                    Tomorrow
+                  </button>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsWeekendMenuOpen((prev) => !prev)}
+                      className={`px-4 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                        isWeekendSelected
+                          ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/30"
+                          : "bg-slate-800/80 text-slate-200 border-slate-700 hover:border-rose-500"
+                      }`}
+                    >
+                      Weekend
+                    </button>
+
+                    {isWeekendMenuOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setIsWeekendMenuOpen(false)}
+                        />
+                        <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl bg-slate-900 border border-slate-700/80 shadow-2xl z-50 p-2 space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setValue("date", satStr, { shouldValidate: true });
+                              setIsWeekendMenuOpen(false);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl text-left text-xs font-bold text-slate-200 hover:bg-rose-600 hover:text-white transition-all flex justify-between items-center cursor-pointer"
+                          >
+                            <span>Saturday</span>
+                            <span className="text-[10px] opacity-80">{satDisplay}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setValue("date", sunStr, { shouldValidate: true });
+                              setIsWeekendMenuOpen(false);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl text-left text-xs font-bold text-slate-200 hover:bg-rose-600 hover:text-white transition-all flex justify-between items-center cursor-pointer"
+                          >
+                            <span>Sunday</span>
+                            <span className="text-[10px] opacity-80">{sunDisplay}</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <button

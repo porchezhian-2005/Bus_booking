@@ -33,7 +33,7 @@ export const PassengerEntity = new EntitySchema({
       target: "Booking",
       type: "many-to-one",
       joinColumn: { name: "bookingId" },
-      onDelete: "CASCADE",
+      onDelete: "RESTRICT",
     },
   },
 });

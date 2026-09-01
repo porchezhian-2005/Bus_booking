@@ -76,16 +76,16 @@ export const AdminDashboard = () => {
   const [tripPage, setTripPage] = useState(1);
   const TRIPS_PER_PAGE = 8;
   const [coupons, setCoupons] = useState([]);
-  const [config, setConfig] = useState({ walletMaxUsagePercent: 20, referralAmount: 500 });
+  const [config, setConfig] = useState({ walletMaxUsagePercent: "", referralAmount: "" });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
   // Bus Form State
   const [busName, setBusName] = useState("");
   const [busNumber, setBusNumber] = useState("");
-  const [busType, setBusType] = useState("AC Sleeper (2+1)");
-  const [totalSeats, setTotalSeats] = useState("30");
-  const [operatorName, setOperatorName] = useState("Express Travels");
+  const [busType, setBusType] = useState("");
+  const [totalSeats, setTotalSeats] = useState("");
+  const [operatorName, setOperatorName] = useState("");
 
   // Route Form State
   const [routeSource, setRouteSource] = useState("");
@@ -96,14 +96,19 @@ export const AdminDashboard = () => {
   // Trip Schedule Form State
   const [selectedBusId, setSelectedBusId] = useState("");
   const [selectedRouteId, setSelectedRouteId] = useState("");
-  const [tripDepartureDate, setTripDepartureDate] = useState("2026-09-01");
-  const [tripDepartureTime, setTripDepartureTime] = useState("21:30");
-  const [tripArrivalTime, setTripArrivalTime] = useState("04:00 AM");
-  const [tripBasePrice, setTripBasePrice] = useState("850");
+  const [tripDepartureDate, setTripDepartureDate] = useState("");
+  const [tripDepartureTime, setTripDepartureTime] = useState("");
+  const [tripArrivalTime, setTripArrivalTime] = useState("");
+  const [tripBasePrice, setTripBasePrice] = useState("");
+
+  // Submission Loading States
+  const [isAddingBus, setIsAddingBus] = useState(false);
+  const [isAddingRoute, setIsAddingRoute] = useState(false);
+  const [isSchedulingTrip, setIsSchedulingTrip] = useState(false);
 
   // Coupon Form State
   const [couponCode, setCouponCode] = useState("");
-  const [discountType, setDiscountType] = useState("FLAT");
+  const [discountType, setDiscountType] = useState("");
   const [discountValue, setDiscountValue] = useState("");
   const [minBookingAmount, setMinBookingAmount] = useState("");
 
@@ -149,6 +154,9 @@ export const AdminDashboard = () => {
 
   const handleAddBus = async (e) => {
     e.preventDefault();
+    if (isAddingBus) return;
+
+    setIsAddingBus(true);
     try {
       await api.post("/buses", { 
         name: busName, 
@@ -160,19 +168,36 @@ export const AdminDashboard = () => {
       toast.success("Bus added to RedBus fleet successfully!");
       setBusName("");
       setBusNumber("");
-      setTotalSeats("30");
+      setBusType("");
+      setTotalSeats("");
+      setOperatorName("");
       fetchAllAdminData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to add bus");
+    } finally {
+      setIsAddingBus(false);
     }
   };
 
   const handleAddRoute = async (e) => {
     e.preventDefault();
+    if (isAddingRoute) return;
+
+    if (!routeSource || !routeDestination || routeSource.trim().toLowerCase() === routeDestination.trim().toLowerCase()) {
+      toast.error("Source and Destination cities cannot be the same.");
+      return;
+    }
+
+    if (!distanceKm || Number(distanceKm) <= 0) {
+      toast.error("Distance must be greater than 0 km.");
+      return;
+    }
+
+    setIsAddingRoute(true);
     try {
       await api.post("/buses/routes", {
-        source: routeSource,
-        destination: routeDestination,
+        source: routeSource.trim(),
+        destination: routeDestination.trim(),
         distanceKm: Number(distanceKm),
         durationHours: Number(durationHours),
       });
@@ -184,15 +209,26 @@ export const AdminDashboard = () => {
       fetchAllAdminData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to create route");
+    } finally {
+      setIsAddingRoute(false);
     }
   };
 
   const handleScheduleTrip = async (e) => {
     e.preventDefault();
+    if (isSchedulingTrip) return;
+
     if (!selectedBusId || !selectedRouteId) {
       toast.error("Please select both a Bus and a Route to schedule a trip.");
       return;
     }
+
+    if (!tripBasePrice || Number(tripBasePrice) <= 0) {
+      toast.error("Base ticket price must be greater than ₹0.");
+      return;
+    }
+
+    setIsSchedulingTrip(true);
     try {
       await api.post("/buses/trips", {
         busId: selectedBusId,
@@ -203,11 +239,20 @@ export const AdminDashboard = () => {
         basePrice: Number(tripBasePrice),
       });
       toast.success("Trip scheduled and seats generated!");
+      setSelectedBusId("");
+      setSelectedRouteId("");
+      setTripDepartureDate("");
+      setTripDepartureTime("");
+      setTripArrivalTime("");
+      setTripBasePrice("");
       fetchAllAdminData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to schedule trip");
+    } finally {
+      setIsSchedulingTrip(false);
     }
   };
+
 
   const handleAddCoupon = async (e) => {
     e.preventDefault();
@@ -741,49 +786,58 @@ export const AdminDashboard = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs min-w-[960px] border-collapse">
+                <colgroup>
+                  <col className="w-[20%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[8%]" />
+                </colgroup>
                 <thead>
                   <tr className={`${textSubtle} border-b ${borderDivider}`}>
-                    <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">Passenger Name</th>
-                    <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">Email Address</th>
-                    <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">Mobile Number</th>
-                    <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">PNR</th>
-                    <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">Route Booked</th>
-                    <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">Amount</th>
-                    <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">Payment Status</th>
+                    <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] text-left">Passenger Name</th>
+                    <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] text-left">Email Address</th>
+                    <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] text-left">Mobile Number</th>
+                    <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] text-left">PNR</th>
+                    <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] text-left">Route Booked</th>
+                    <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] text-right">Amount</th>
+                    <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] text-center">Payment Status</th>
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${borderDivider}`}>
                   {confirmedBookingsList.map((b, idx) => (
-                    <tr key={b.id || idx} className={isDay ? "text-slate-800" : "text-slate-300"}>
-                      <td className="py-3.5">
-                        <div className={`font-bold ${textTitle} flex items-center gap-2`}>
+                    <tr key={b.id || idx} className={`${isDay ? "text-slate-800" : "text-slate-300"} hover:bg-slate-500/5 transition-colors`}>
+                      <td className="py-3.5 px-3">
+                        <div className={`font-bold ${textTitle} flex items-center gap-2 max-w-[200px]`}>
                           <div className="w-7 h-7 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center font-bold text-xs border border-rose-500/30 flex-shrink-0">
                             {(b.user?.name || b.user?.fullName || "P").charAt(0).toUpperCase()}
                           </div>
-                          <span>{b.user?.name || b.user?.fullName || "Verified Passenger"}</span>
+                          <span className="truncate">{b.user?.name || b.user?.fullName || "Verified Passenger"}</span>
                         </div>
                       </td>
-                      <td className="py-3.5">
-                        <div className="font-semibold text-rose-500 flex items-center gap-1.5">
+                      <td className="py-3.5 px-3">
+                        <div className="font-semibold text-rose-500 flex items-center gap-1.5 max-w-[220px]" title={b.user?.email || "passenger@example.com"}>
                           <Mail className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                          <span>{b.user?.email || "passenger@example.com"}</span>
+                          <span className="truncate">{b.user?.email || "passenger@example.com"}</span>
                         </div>
                       </td>
-                      <td className="py-3.5">
+                      <td className="py-3.5 px-3 whitespace-nowrap">
                         <div className={`font-semibold ${textSubtle} flex items-center gap-1.5`}>
                           <Phone className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
                           <span>{b.user?.mobile || "+91 98765 43210"}</span>
                         </div>
                       </td>
-                      <td className={`py-3.5 font-extrabold ${textTitle}`}>{b.pnr}</td>
-                      <td className="py-3.5 font-semibold text-indigo-500">
+                      <td className={`py-3.5 px-3 whitespace-nowrap font-extrabold ${textTitle}`}>{b.pnr}</td>
+                      <td className="py-3.5 px-3 whitespace-nowrap font-semibold text-indigo-500">
                         {b.trip?.route ? `${b.trip.route.source} → ${b.trip.route.destination}` : "Chennai → Bengaluru"}
                       </td>
-                      <td className="py-3.5 font-black text-emerald-500">
+                      <td className="py-3.5 px-3 whitespace-nowrap text-right font-black text-emerald-500">
                         ₹{b.finalAmountPaid || b.totalAmount || 499}
                       </td>
-                      <td className="py-3.5">
+                      <td className="py-3.5 px-3 whitespace-nowrap text-center">
                         <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase inline-block">
                           ✓ COMPLETED
                         </span>
@@ -874,7 +928,7 @@ export const AdminDashboard = () => {
               <form onSubmit={handleAddBus} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <input
                   type="text"
-                  placeholder="Bus Name (e.g. KPN Travels)"
+                  placeholder="Enter bus name (e.g., KPN Travels, IntrCity SmartBus)"
                   value={busName}
                   onChange={(e) => setBusName(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold focus:outline-none focus:border-rose-500`}
@@ -882,7 +936,7 @@ export const AdminDashboard = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Registration No (e.g. TN-37-AX-8910)"
+                  placeholder="Enter registration number (e.g., TN-37-AX-8910)"
                   value={busNumber}
                   onChange={(e) => setBusNumber(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold focus:outline-none focus:border-rose-500`}
@@ -892,7 +946,9 @@ export const AdminDashboard = () => {
                   value={busType}
                   onChange={(e) => setBusType(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold cursor-pointer`}
+                  required
                 >
+                  <option value="" disabled>Select bus type (e.g., AC Sleeper, AC Seater, Non-AC Seater)</option>
                   <option value="AC Sleeper (2+1)">AC Sleeper (2+1)</option>
                   <option value="AC Seater (2+2)">AC Seater (2+2)</option>
                   <option value="Non-AC Sleeper (2+1)">Non-AC Sleeper (2+1)</option>
@@ -900,7 +956,7 @@ export const AdminDashboard = () => {
                 </select>
                 <input
                   type="number"
-                  placeholder="Total Seat Capacity (e.g. 30)"
+                  placeholder="Enter total number of seats (e.g., 30, 36, 40)"
                   value={totalSeats}
                   onChange={(e) => setTotalSeats(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold focus:outline-none focus:border-rose-500`}
@@ -910,7 +966,7 @@ export const AdminDashboard = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Operator Name (e.g. KPN Express)"
+                  placeholder="Enter operator or company name (e.g., KPN Travels, IntrCity)"
                   value={operatorName}
                   onChange={(e) => setOperatorName(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold focus:outline-none focus:border-rose-500`}
@@ -919,9 +975,13 @@ export const AdminDashboard = () => {
                 <div className="sm:col-span-2">
                   <button
                     type="submit"
-                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs shadow-lg shadow-rose-600/30 transition-all cursor-pointer flex items-center gap-1.5"
+                    disabled={isAddingBus}
+                    className={`px-6 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs shadow-lg shadow-rose-600/30 transition-all flex items-center gap-1.5 ${
+                      isAddingBus ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                    }`}
                   >
-                    <Plus className="w-4 h-4" /> Add Bus Fleet
+                    <Plus className="w-4 h-4" />
+                    <span>{isAddingBus ? "Adding Bus..." : "Add Bus Fleet"}</span>
                   </button>
                 </div>
               </form>
@@ -974,7 +1034,7 @@ export const AdminDashboard = () => {
               <form onSubmit={handleAddRoute} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <input
                   type="text"
-                  placeholder="Source City (e.g. Chennai)"
+                  placeholder="Enter source city (e.g., Chennai, Mumbai)"
                   value={routeSource}
                   onChange={(e) => setRouteSource(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
@@ -982,7 +1042,7 @@ export const AdminDashboard = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Destination City (e.g. Bengaluru)"
+                  placeholder="Enter destination city (e.g., Bengaluru, Delhi)"
                   value={routeDestination}
                   onChange={(e) => setRouteDestination(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
@@ -990,27 +1050,33 @@ export const AdminDashboard = () => {
                 />
                 <input
                   type="number"
-                  placeholder="Distance in KM (e.g. 350)"
+                  placeholder="Enter distance in km (e.g., 350)"
                   value={distanceKm}
                   onChange={(e) => setDistanceKm(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
+                  min="1"
                   required
                 />
                 <input
                   type="number"
                   step="0.5"
-                  placeholder="Duration in Hours (e.g. 6.5)"
+                  placeholder="Enter duration in hours (e.g., 6.5)"
                   value={durationHours}
                   onChange={(e) => setDurationHours(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
+                  min="0.5"
                   required
                 />
                 <div className="sm:col-span-2">
                   <button
                     type="submit"
-                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs shadow-lg shadow-rose-600/30 transition-all cursor-pointer flex items-center gap-1.5"
+                    disabled={isAddingRoute}
+                    className={`px-6 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs shadow-lg shadow-rose-600/30 transition-all flex items-center gap-1.5 ${
+                      isAddingRoute ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                    }`}
                   >
-                    <Plus className="w-4 h-4" /> Create Route
+                    <Plus className="w-4 h-4" />
+                    <span>{isAddingRoute ? "Creating Route..." : "Create Route"}</span>
                   </button>
                 </div>
               </form>
@@ -1069,6 +1135,7 @@ export const AdminDashboard = () => {
                     className={`w-full px-4 py-3 rounded-xl ${bgInput} text-xs font-bold cursor-pointer`}
                     required
                   >
+                    <option value="" disabled>Select bus from fleet</option>
                     {buses.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.name} ({b.busNumber})
@@ -1085,6 +1152,7 @@ export const AdminDashboard = () => {
                     className={`w-full px-4 py-3 rounded-xl ${bgInput} text-xs font-bold cursor-pointer`}
                     required
                   >
+                    <option value="" disabled>Select travel route</option>
                     {routes.map((r) => (
                       <option key={r.id} value={r.id}>
                         {r.source} → {r.destination} ({r.distanceKm} km)
@@ -1099,6 +1167,7 @@ export const AdminDashboard = () => {
                     type="date"
                     value={tripDepartureDate}
                     onChange={(e) => setTripDepartureDate(e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
                     className={`w-full px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
                     required
                   />
@@ -1111,7 +1180,7 @@ export const AdminDashboard = () => {
                     value={tripDepartureTime}
                     onChange={(e) => setTripDepartureTime(e.target.value)}
                     className={`w-full px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
-                    placeholder="e.g. 21:30"
+                    placeholder="Enter departure time (e.g., 21:30 or 09:30 PM)"
                     required
                   />
                 </div>
@@ -1123,7 +1192,7 @@ export const AdminDashboard = () => {
                     value={tripArrivalTime}
                     onChange={(e) => setTripArrivalTime(e.target.value)}
                     className={`w-full px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
-                    placeholder="e.g. 04:00 AM"
+                    placeholder="Enter arrival time (e.g., 04:00 AM)"
                     required
                   />
                 </div>
@@ -1135,7 +1204,8 @@ export const AdminDashboard = () => {
                     value={tripBasePrice}
                     onChange={(e) => setTripBasePrice(e.target.value)}
                     className={`w-full px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
-                    placeholder="850"
+                    placeholder="Enter base ticket price in ₹ (e.g., 850)"
+                    min="1"
                     required
                   />
                 </div>
@@ -1143,9 +1213,13 @@ export const AdminDashboard = () => {
                 <div className="sm:col-span-2">
                   <button
                     type="submit"
-                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs shadow-lg shadow-rose-600/30 transition-all cursor-pointer flex items-center gap-1.5"
+                    disabled={isSchedulingTrip}
+                    className={`px-6 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs shadow-lg shadow-rose-600/30 transition-all flex items-center gap-1.5 ${
+                      isSchedulingTrip ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                    }`}
                   >
-                    <Send className="w-4 h-4" /> Publish Trip Live
+                    <Send className="w-4 h-4" />
+                    <span>{isSchedulingTrip ? "Publishing Trip..." : "Publish Trip Live"}</span>
                   </button>
                 </div>
               </form>
@@ -1309,7 +1383,7 @@ export const AdminDashboard = () => {
               <form onSubmit={handleAddCoupon} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <input
                   type="text"
-                  placeholder="Coupon Code (e.g. REDBUS200)"
+                  placeholder="Enter promo coupon code (e.g., REDBUS200)"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold uppercase`}
@@ -1319,13 +1393,15 @@ export const AdminDashboard = () => {
                   value={discountType}
                   onChange={(e) => setDiscountType(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold cursor-pointer`}
+                  required
                 >
+                  <option value="" disabled>Select discount type (e.g., Flat, Percentage)</option>
                   <option value="FLAT">Flat Discount (₹)</option>
                   <option value="PERCENT">Percentage Discount (%)</option>
                 </select>
                 <input
                   type="number"
-                  placeholder="Discount Value (e.g. 200)"
+                  placeholder="Enter discount amount or percentage (e.g., 200 or 15)"
                   value={discountValue}
                   onChange={(e) => setDiscountValue(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
@@ -1333,7 +1409,7 @@ export const AdminDashboard = () => {
                 />
                 <input
                   type="number"
-                  placeholder="Min Booking Amount (e.g. 500)"
+                  placeholder="Enter minimum booking spend in ₹ (e.g., 500)"
                   value={minBookingAmount}
                   onChange={(e) => setMinBookingAmount(e.target.value)}
                   className={`px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
@@ -1390,9 +1466,10 @@ export const AdminDashboard = () => {
                 </label>
                 <input
                   type="number"
-                  value={config.walletMaxUsagePercent || 20}
+                  value={config.walletMaxUsagePercent !== undefined ? config.walletMaxUsagePercent : ""}
                   onChange={(e) => setConfig({ ...config, walletMaxUsagePercent: e.target.value })}
                   className={`w-full px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
+                  placeholder="Enter max wallet usage percent (e.g., 20)"
                   required
                 />
               </div>
@@ -1403,9 +1480,10 @@ export const AdminDashboard = () => {
                 </label>
                 <input
                   type="number"
-                  value={config.referralAmount || 500}
+                  value={config.referralAmount !== undefined ? config.referralAmount : ""}
                   onChange={(e) => setConfig({ ...config, referralAmount: e.target.value })}
                   className={`w-full px-4 py-3 rounded-xl ${bgInput} text-xs font-bold`}
+                  placeholder="Enter referral reward amount in ₹ (e.g., 500)"
                   required
                 />
               </div>

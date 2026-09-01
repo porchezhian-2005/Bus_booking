@@ -35,7 +35,7 @@ const paymentTxnRepository = AppDataSource.getRepository(TransactionEntity);
 
 const emailService = new EmailService();
 const walletService = new WalletService(walletRepository, transactionRepository);
-const couponService = new CouponService(couponRepository);
+const couponService = new CouponService(couponRepository, bookingRepository);
 const configService = new ConfigService(configRepository);
 const referralService = new ReferralService(userRepository, referralRepository, walletService, configRepository, emailService);
 const ticketService = new TicketService(bookingRepository, passengerRepository, seatRepository, walletService);
@@ -60,6 +60,7 @@ export const createBooking = async (req, res) => {
     const booking = await bookingService.createBooking(req.user.id, req.body);
     return res.status(201).json({ success: true, message: "Bus ticket booked successfully!", data: booking });
   } catch (error) {
+    console.error("CREATE BOOKING ERROR:", error);
     return res.status(error.statusCode || 500).json({ success: false, message: error.message });
   }
 };
@@ -75,9 +76,10 @@ export const getUserBookings = async (req, res) => {
 
 export const getAllBookings = async (req, res) => {
   try {
-    const bookings = await bookingService.getAllBookings();
+    const bookings = await bookingService.getAllBookings(req.query);
     return res.status(200).json({ success: true, data: bookings });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
