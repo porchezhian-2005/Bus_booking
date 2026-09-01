@@ -55,7 +55,26 @@ export const verifyRazorpayPayment = async (req, res) => {
 };
 
 /**
- * 3. Add Money to Wallet via Razorpay (Disabled)
+ * 3. Cancel / Release Temporary Seat Hold
+ */
+export const cancelRazorpayHold = async (req, res) => {
+  try {
+    const result = await paymentService.cancelHold(req.user.id, req.body);
+    return res.status(200).json({
+      success: true,
+      message: "Seat hold released successfully",
+      data: result,
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Failed to release seat hold",
+    });
+  }
+};
+
+/**
+ * 4. Add Money to Wallet via Razorpay (Disabled)
  */
 export const addMoneyToWalletViaRazorpay = async (req, res) => {
   return res.status(400).json({

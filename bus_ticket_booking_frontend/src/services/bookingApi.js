@@ -9,6 +9,7 @@ export const bookingApi = {
   validateCoupon: (data) => api.post("/coupons/validate", data),
   getActiveCoupons: () => api.get("/coupons"),
   createRazorpayOrder: (data) => api.post("/payments/razorpay/create-order", data),
+  cancelRazorpayHold: (data) => api.post("/payments/razorpay/cancel-hold", data),
   verifyRazorpayPayment: (data) => api.post("/payments/razorpay/verify", data),
   getSystemConfig: () => api.get("/config"),
 };

@@ -85,11 +85,27 @@ export class BookingService {
       }
     }
 
+    const now = new Date();
     for (const seat of rawSeats) {
       if (seat.status === "BOOKED") {
         const error = new Error(`Seat ${seat.seatNumber} is already booked by another user.`);
         error.statusCode = 400;
         throw error;
+      }
+
+      if (seat.status === "HELD") {
+        if (seat.heldUntil && new Date(seat.heldUntil) <= now) {
+          // EXPIRED HOLD: An expired hold is DEAD. User loses exclusive right.
+          const error = new Error(`Seat hold for seat ${seat.seatNumber} has expired. Booking creation failed.`);
+          error.statusCode = 409;
+          throw error;
+        }
+
+        if (seat.heldBy && seat.heldBy !== userId) {
+          const error = new Error(`Seat ${seat.seatNumber} is currently held by another user.`);
+          error.statusCode = 409;
+          throw error;
+        }
       }
     }
 
@@ -432,6 +448,8 @@ export class BookingService {
         );
 
         seat.status = "BOOKED";
+        seat.heldBy = null;
+        seat.heldUntil = null;
         await seatRepo.save(seat);
       }
 

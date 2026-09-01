@@ -38,11 +38,16 @@ export const SeatMapModal = ({ isOpen, onClose, seats = [], selectedSeats = [], 
 
   const getSeatStyling = (seat) => {
     const isBooked = seat.status === "BOOKED";
+    const isHeldByOther = seat.status === "HELD" && !seat.isHeldByMe;
     const isSelected = isSeatSelected(seat.id);
     const isLadies = seat.isLadiesSeat || seat.isLadies || seat.genderPolicy === "FEMALE_ONLY";
 
     if (isBooked) {
       return "bg-slate-800/60 dark:bg-slate-900/80 text-slate-500 border-slate-700/60 cursor-not-allowed opacity-50 select-none";
+    }
+
+    if (isHeldByOther) {
+      return "bg-amber-950/40 text-amber-400/80 border-amber-500/40 cursor-not-allowed opacity-70 select-none";
     }
 
     if (isSelected) {
@@ -201,7 +206,7 @@ export const SeatMapModal = ({ isOpen, onClose, seats = [], selectedSeats = [], 
                     return (
                       <button
                         key={seat.id}
-                        disabled={seat.status === "BOOKED"}
+                        disabled={seat.status === "BOOKED" || (seat.status === "HELD" && !seat.isHeldByMe)}
                         onClick={() => onSelectSeat(seat)}
                         className={`rounded-xl border p-2 text-center transition-all flex flex-col items-center justify-center relative ${
                           isSleeper ? "w-24 sm:w-28 h-12" : "w-14 sm:w-16 h-14"
@@ -235,7 +240,7 @@ export const SeatMapModal = ({ isOpen, onClose, seats = [], selectedSeats = [], 
                     return (
                       <button
                         key={seat.id}
-                        disabled={seat.status === "BOOKED"}
+                        disabled={seat.status === "BOOKED" || (seat.status === "HELD" && !seat.isHeldByMe)}
                         onClick={() => onSelectSeat(seat)}
                         className={`rounded-xl border p-2 text-center transition-all flex flex-col items-center justify-center relative ${
                           isSleeper ? "w-24 sm:w-28 h-12" : "w-14 sm:w-16 h-14"

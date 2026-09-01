@@ -2,6 +2,7 @@ import express from "express";
 import {
   createRazorpayBookingOrder,
   verifyRazorpayPayment,
+  cancelRazorpayHold,
   addMoneyToWalletViaRazorpay,
 } from "../controller/paymentController.js";
 import { authenticateJWT } from "../middleware/auth.js";
@@ -30,6 +31,7 @@ const router = express.Router();
  *         description: Order created with orderId and key
  */
 router.post("/razorpay/create-order", authenticateJWT, createRazorpayBookingOrder);
+router.post("/razorpay/cancel-hold", authenticateJWT, cancelRazorpayHold);
 
 /**
  * @swagger
