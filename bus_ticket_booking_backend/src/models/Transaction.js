@@ -39,6 +39,16 @@ export const TransactionEntity = new EntitySchema({
       length: 100,
       nullable: true,
     },
+    razorpayOrderId: {
+      type: "varchar",
+      length: 100,
+      nullable: true,
+      unique: true,
+    },
+    orderMetadata: {
+      type: "text",
+      nullable: true,
+    },
     createdAt: {
       type: "timestamp",
       createDate: true,

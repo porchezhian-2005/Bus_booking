@@ -294,11 +294,58 @@ export class BookingService {
 
       // 5. Razorpay TEST Payment Verification (if remainingCost > 0)
       let gatewayRefId = null;
+      let pendingTxn = null;
       if (remainingCost > 0) {
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
           const error = new Error("Razorpay TEST payment details (razorpay_order_id, razorpay_payment_id, razorpay_signature) are required to complete booking.");
           error.statusCode = 400;
           throw error;
+        }
+
+        // Pessimistic write lock on the PENDING transaction record to prevent concurrent double-processing
+        pendingTxn = await txnRepo.findOne({
+          where: { razorpayOrderId: razorpay_order_id },
+          lock: { mode: "pessimistic_write" },
+        });
+
+        if (!pendingTxn) {
+          const error = new Error("Invalid or unrecognized Razorpay order ID.");
+          error.statusCode = 404;
+          throw error;
+        }
+
+        // Verification Rule 1: User Ownership Check
+        if (pendingTxn.userId !== userId) {
+          const error = new Error("Razorpay order does not belong to the current authenticated user.");
+          error.statusCode = 403;
+          throw error;
+        }
+
+        // Verification Rule 2: Order Status Lifecycle Check (Prevent Replay/Reuse)
+        if (pendingTxn.paymentStatus !== "PENDING") {
+          const error = new Error("Razorpay order has already been processed or finalized.");
+          error.statusCode = 409;
+          throw error;
+        }
+
+        // Verification Rule 3: Payment Intent & Metadata Matching Check
+        if (pendingTxn.orderMetadata) {
+          try {
+            const meta = JSON.parse(pendingTxn.orderMetadata);
+            const sortedRequestSeats = Array.isArray(seatIds) ? seatIds.slice().sort().join(",") : "";
+            const sortedMetaSeats = Array.isArray(meta.seatIds) ? meta.seatIds.slice().sort().join(",") : "";
+
+            if (meta.tripId !== tripId || sortedRequestSeats !== sortedMetaSeats) {
+              const error = new Error("Razorpay order was created for a different trip or set of seats.");
+              error.statusCode = 400;
+              throw error;
+            }
+          } catch (e) {
+            if (e.statusCode) throw e;
+            const error = new Error("Invalid Razorpay order metadata.");
+            error.statusCode = 400;
+            throw error;
+          }
         }
 
         // Idempotency check: prevent duplicate processing of the same Razorpay payment
@@ -390,18 +437,29 @@ export class BookingService {
 
       await passengerRepo.save(passengerEntities);
 
-      // 9. Log Payment Transaction Record
+      // 9. Log / Update Payment Transaction Record
       if (txnRepo) {
-        const txn = txnRepo.create({
-          transactionId: `TXN${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`,
-          userId,
-          bookingId: savedBooking.id,
-          amount: savedBooking.finalAmountPaid,
-          paymentMethod: savedBooking.paymentMethod,
-          paymentStatus: "SUCCESS",
-          gatewayReferenceId: gatewayRefId || `WALLET-${savedBooking.pnr}`,
-        });
-        await txnRepo.save(txn);
+        if (pendingTxn) {
+          // Transition PENDING transaction to SUCCESS atomically
+          pendingTxn.bookingId = savedBooking.id;
+          pendingTxn.paymentStatus = "SUCCESS";
+          pendingTxn.gatewayReferenceId = gatewayRefId;
+          pendingTxn.amount = savedBooking.finalAmountPaid;
+          pendingTxn.paymentMethod = savedBooking.paymentMethod;
+          await txnRepo.save(pendingTxn);
+        } else {
+          // Pure Wallet payment flow
+          const txn = txnRepo.create({
+            transactionId: `TXN${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`,
+            userId,
+            bookingId: savedBooking.id,
+            amount: savedBooking.finalAmountPaid,
+            paymentMethod: savedBooking.paymentMethod,
+            paymentStatus: "SUCCESS",
+            gatewayReferenceId: `WALLET-${savedBooking.pnr}`,
+          });
+          await txnRepo.save(txn);
+        }
       }
 
       // 10. Trigger Referral Bonus if referee's 1st booking

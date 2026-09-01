@@ -12,12 +12,15 @@ export class RazorpayService {
   /**
    * Create Razorpay Order
    */
-  async createOrder(amountInINR, receiptId) {
+  async createOrder(amountInINR, receiptId, notes = null) {
     const options = {
       amount: Math.round(amountInINR * 100), // Amount in paise (e.g. ₹500 = 50000 paise)
       currency: "INR",
       receipt: receiptId,
     };
+    if (notes) {
+      options.notes = notes;
+    }
 
     return await this.razorpay.orders.create(options);
   }
