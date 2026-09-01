@@ -41,7 +41,7 @@ const referralService = new ReferralService(userRepository, referralRepository, 
 const ticketService = new TicketService(bookingRepository, passengerRepository, seatRepository, walletService);
 const transactionService = new TransactionService(paymentTxnRepository);
 
-const bookingService = new BookingService(
+export const bookingService = new BookingService(
   bookingRepository,
   passengerRepository,
   seatRepository,

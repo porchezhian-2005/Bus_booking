@@ -11,6 +11,8 @@ import BookingService from "../services/bookingService.js";
 import WalletService from "../services/walletService.js";
 import TransactionService from "../services/transactionService.js";
 
+import { bookingService } from "./bookingController.js";
+
 const bookingRepository = AppDataSource.getRepository(BookingEntity);
 const passengerRepository = AppDataSource.getRepository(PassengerEntity);
 const seatRepository = AppDataSource.getRepository(SeatEntity);
@@ -27,13 +29,26 @@ const transactionService = new TransactionService(paymentTxnRepository);
  */
 export const createRazorpayBookingOrder = async (req, res) => {
   try {
-    const { amount } = req.body;
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: "Valid amount is required" });
+    const { tripId, seatIds, couponCode, useWallet } = req.body;
+
+    // Calculate authoritative payment amount from DB
+    const calculation = await bookingService.calculateBookingAmount(req.user.id, {
+      tripId,
+      seatIds,
+      couponCode,
+      useWallet,
+    });
+
+    const amountToCharge = calculation.finalAmountPaid;
+    if (amountToCharge <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No gateway payment required. Total amount is fully covered by Wallet or Discount.",
+      });
     }
 
     const receipt = `RCPT-${Date.now()}`;
-    const order = await razorpayService.createOrder(amount, receipt);
+    const order = await razorpayService.createOrder(amountToCharge, receipt);
 
     return res.status(200).json({
       success: true,
@@ -46,7 +61,7 @@ export const createRazorpayBookingOrder = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Failed to create Razorpay order",
     });

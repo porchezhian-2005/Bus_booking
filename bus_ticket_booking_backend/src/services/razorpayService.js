@@ -34,6 +34,20 @@ export class RazorpayService {
 
     return expectedSignature === signature;
   }
+
+  /**
+   * Fetch Razorpay Order by ID
+   */
+  async fetchOrder(orderId) {
+    return await this.razorpay.orders.fetch(orderId);
+  }
+
+  /**
+   * Fetch Razorpay Payment by ID
+   */
+  async fetchPayment(paymentId) {
+    return await this.razorpay.payments.fetch(paymentId);
+  }
 }
 
 export default RazorpayService;
