@@ -36,25 +36,6 @@ export const createRazorpayBookingOrder = async (req, res) => {
 };
 
 /**
- * 2. Verify Razorpay Payment Signature
- */
-export const verifyRazorpayPayment = async (req, res) => {
-  try {
-    const result = await paymentService.verifyRazorpayPayment(req.user.id, req.body);
-    return res.status(200).json({
-      success: true,
-      message: "Razorpay payment verified successfully!",
-      paymentId: result.paymentId,
-    });
-  } catch (error) {
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || "Payment verification failed",
-    });
-  }
-};
-
-/**
  * 3. Cancel / Release Temporary Seat Hold
  */
 export const cancelRazorpayHold = async (req, res) => {
