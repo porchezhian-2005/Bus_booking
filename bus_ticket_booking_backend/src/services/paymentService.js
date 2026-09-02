@@ -133,11 +133,18 @@ export class PaymentService {
       throw txnErr;
     }
 
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
+    if (!razorpayKeyId) {
+      const error = new Error("Razorpay configuration error: RAZORPAY_KEY_ID is missing.");
+      error.statusCode = 500;
+      throw error;
+    }
+
     return {
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
-      key: process.env.RAZORPAY_KEY_ID || process.env.PAYMENT_GATEWAY_KEY_ID,
+      key: razorpayKeyId,
       heldUntil: heldUntil.toISOString(),
     };
   }
