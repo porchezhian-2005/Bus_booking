@@ -155,8 +155,8 @@ export const Checkout = () => {
 
       // Step C: Initialize Razorpay TEST Checkout Modal
       const options = {
-        key: orderData.key || "rzp_test_dummy_key",
-        amount: orderData.amount || Math.round(finalPayable * 100),
+        key: orderData.key,
+        amount: orderData.amount,
         currency: orderData.currency || "INR",
         name: "RedBus Ticket Booking",
         description: `Booking ${selectedSeats.length} Seat(s) for ${trip?.bus?.name || "Fleet Bus"} (TEST Mode)`,
