@@ -1,7 +1,6 @@
 import express from "express";
 import {
   createRazorpayBookingOrder,
-  verifyRazorpayPayment,
   cancelRazorpayHold,
   handleRazorpayWebhook,
   addMoneyToWalletViaRazorpay,
@@ -34,31 +33,6 @@ const router = express.Router();
 router.post("/razorpay/create-order", authenticateJWT, createRazorpayBookingOrder);
 router.post("/razorpay/cancel-hold", authenticateJWT, cancelRazorpayHold);
 router.post("/razorpay/webhook", handleRazorpayWebhook);
-
-/**
- * @swagger
- * /api/payments/razorpay/verify:
- *   post:
- *     summary: Verify Razorpay payment signature & confirm transaction
- *     tags: [Razorpay Payments]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [razorpay_order_id, razorpay_payment_id, razorpay_signature]
- *             properties:
- *               razorpay_order_id: { type: string }
- *               razorpay_payment_id: { type: string }
- *               razorpay_signature: { type: string }
- *     responses:
- *       200:
- *         description: Payment verified successfully
- */
-router.post("/razorpay/verify", authenticateJWT, verifyRazorpayPayment);
 
 /**
  * @swagger

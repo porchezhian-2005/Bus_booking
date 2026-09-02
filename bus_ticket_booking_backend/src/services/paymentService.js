@@ -169,39 +169,6 @@ export class PaymentService {
   }
 
   /**
-   * Verify Razorpay Payment Signature & Record Successful Transaction
-   */
-  async verifyRazorpayPayment(userId, { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId, amount }) {
-    const isValid = this.razorpayService.verifyPaymentSignature(
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature
-    );
-
-    if (!isValid) {
-      const error = new Error("Invalid Razorpay payment signature! Payment verification failed.");
-      error.statusCode = 400;
-      throw error;
-    }
-
-    // Log successful transaction
-    if (this.transactionService) {
-      await this.transactionService.createTransaction({
-        userId,
-        bookingId: bookingId || null,
-        amount: amount || 0,
-        paymentMethod: "RAZORPAY_GATEWAY",
-        paymentStatus: "SUCCESS",
-        gatewayReferenceId: razorpay_payment_id,
-      });
-    }
-
-    return {
-      paymentId: razorpay_payment_id,
-    };
-  }
-
-  /**
    * Handle Razorpay Webhook Event Notifications
    */
   async handleRazorpayWebhook(rawBody, signature, payload) {
