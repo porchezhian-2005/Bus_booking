@@ -121,9 +121,12 @@ async function runTests() {
   console.log(`[+] Seat A: ${seatsUserA[0].seatNumber} (${seatAId})`);
   console.log(`[+] Seat B: ${seatsUserB[0].seatNumber} (${seatBId})`);
 
+  process.env.RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "rzp_test_mock_prob2";
+  process.env.RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "mock_secret_prob2";
+
   // Helper to generate HMAC signature
   function generateSignature(orderId, paymentId) {
-    const secret = process.env.RAZORPAY_KEY_SECRET || process.env.PAYMENT_GATEWAY_KEY_SECRET || "dummy_secret";
+    const secret = process.env.RAZORPAY_KEY_SECRET;
     return crypto.createHmac("sha256", secret).update(`${orderId}|${paymentId}`).digest("hex");
   }
 

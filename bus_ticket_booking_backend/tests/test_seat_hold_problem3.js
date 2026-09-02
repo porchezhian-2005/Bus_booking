@@ -126,8 +126,11 @@ async function runProblem3Tests() {
   const transactionService = new TransactionService(txnRepo);
   const paymentService = new PaymentService(txnRepo, razorpayService, bookingService, transactionService);
 
+  process.env.RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "rzp_test_mock_prob3";
+  process.env.RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "mock_secret_prob3";
+
   const generateSignature = (orderId, paymentId) => {
-    const secret = process.env.RAZORPAY_KEY_SECRET || process.env.PAYMENT_GATEWAY_KEY_SECRET || "mock_secret";
+    const secret = process.env.RAZORPAY_KEY_SECRET;
     return crypto
       .createHmac("sha256", secret)
       .update(`${orderId}|${paymentId}`)
