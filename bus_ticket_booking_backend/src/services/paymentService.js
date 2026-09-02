@@ -17,7 +17,7 @@ export class PaymentService {
   /**
    * Create Razorpay Payment Order & Persist PENDING Transaction with 10-Minute Decoupled Seat Hold
    */
-  async createRazorpayBookingOrder(userId, { tripId, seatIds, couponCode, useWallet }) {
+  async createRazorpayBookingOrder(userId, { tripId, seatIds, passengers, boardingPointId, droppingPointId, couponCode, useWallet }) {
     if (!this.bookingService) {
       const { bookingService } = await import("../controller/bookingController.js");
       this.bookingService = bookingService;
@@ -119,6 +119,9 @@ export class PaymentService {
         orderMetadata: JSON.stringify({
           tripId,
           seatIds: seatIds.slice().sort(),
+          passengers: Array.isArray(passengers) ? passengers : [],
+          boardingPointId: boardingPointId || null,
+          droppingPointId: droppingPointId || null,
           couponCode: couponCode || null,
           useWallet: !!useWallet,
         }),
@@ -196,6 +199,77 @@ export class PaymentService {
     return {
       paymentId: razorpay_payment_id,
     };
+  }
+
+  /**
+   * Handle Razorpay Webhook Event Notifications
+   */
+  async handleRazorpayWebhook(rawBody, signature, payload) {
+    if (!this.bookingService) {
+      const { bookingService } = await import("../controller/bookingController.js");
+      this.bookingService = bookingService;
+    }
+
+    const isValidSignature = this.razorpayService.verifyWebhookSignature(rawBody, signature);
+    if (!isValidSignature) {
+      const error = new Error("Invalid Razorpay webhook HMAC signature!");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!payload || !payload.event) {
+      const error = new Error("Invalid webhook payload format!");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const event = payload.event;
+    const paymentEntity = payload.payload?.payment?.entity;
+    const razorpayOrderId = paymentEntity?.order_id;
+    const razorpayPaymentId = paymentEntity?.id;
+
+    if (!razorpayOrderId) {
+      return { success: true, message: `Ignored event ${event} without order_id` };
+    }
+
+    const pendingTxn = await this.transactionRepository.findOne({
+      where: { razorpayOrderId },
+    });
+
+    if (!pendingTxn) {
+      return { success: true, message: `No local transaction found for Razorpay order ID ${razorpayOrderId}` };
+    }
+
+    // Idempotency check: If already SUCCESS, return 200 OK
+    if (pendingTxn.paymentStatus === "SUCCESS") {
+      return { success: true, message: "Webhook event already processed (Idempotent)" };
+    }
+
+    if (event === "payment.captured" || event === "order.paid") {
+      // Delegate fulfillment to unified bookingService
+      const booking = await this.bookingService.finalizeBookingAndPayment(
+        razorpayOrderId,
+        razorpayPaymentId
+      );
+
+      return {
+        success: true,
+        message: "Razorpay webhook payment.captured processed & booking confirmed!",
+        bookingId: booking.id,
+        pnr: booking.pnr,
+      };
+    }
+
+    if (event === "payment.failed") {
+      // Log payment failure on Transaction while keeping active seat hold until expiry
+      if (pendingTxn.paymentStatus === "PENDING") {
+        pendingTxn.gatewayReferenceId = razorpayPaymentId || pendingTxn.gatewayReferenceId;
+        await this.transactionRepository.save(pendingTxn);
+      }
+      return { success: true, message: "Razorpay webhook payment.failed logged successfully" };
+    }
+
+    return { success: true, message: `Webhook event ${event} received and acknowledged` };
   }
 }
 

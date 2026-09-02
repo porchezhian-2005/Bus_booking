@@ -74,7 +74,26 @@ export const cancelRazorpayHold = async (req, res) => {
 };
 
 /**
- * 4. Add Money to Wallet via Razorpay (Disabled)
+ * 4. Handle Razorpay Server-to-Server Webhook Notifications
+ */
+export const handleRazorpayWebhook = async (req, res) => {
+  try {
+    const signature = req.headers["x-razorpay-signature"];
+    const rawBody = req.rawBody;
+    const result = await paymentService.handleRazorpayWebhook(rawBody, signature, req.body);
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("RAZORPAY WEBHOOK ERROR:", error.message);
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Webhook processing failed",
+    });
+  }
+};
+
+/**
+ * 5. Add Money to Wallet via Razorpay (Disabled)
  */
 export const addMoneyToWalletViaRazorpay = async (req, res) => {
   return res.status(400).json({

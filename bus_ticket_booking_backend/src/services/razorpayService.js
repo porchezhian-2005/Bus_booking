@@ -39,6 +39,27 @@ export class RazorpayService {
   }
 
   /**
+   * Verify Razorpay Webhook HMAC Signature
+   */
+  verifyWebhookSignature(rawBody, signature, secret = null) {
+    const webhookSecret = secret || process.env.RAZORPAY_WEBHOOK_SECRET || process.env.PAYMENT_GATEWAY_KEY_SECRET || "dummy_secret";
+    if (!rawBody || !signature || !webhookSecret) {
+      return false;
+    }
+
+    try {
+      const expectedSignature = crypto
+        .createHmac("sha256", webhookSecret)
+        .update(rawBody)
+        .digest("hex");
+
+      return expectedSignature === signature;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
    * Fetch Razorpay Order by ID
    */
   async fetchOrder(orderId) {

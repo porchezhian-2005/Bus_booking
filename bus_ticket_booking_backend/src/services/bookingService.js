@@ -278,6 +278,46 @@ export class BookingService {
         }
       }
 
+      // 0. Early Razorpay Transaction Idempotency Check
+      let pendingTxn = null;
+      if (razorpay_order_id) {
+        pendingTxn = await txnRepo.findOne({
+          where: { razorpayOrderId: razorpay_order_id },
+          lock: { mode: "pessimistic_write" },
+        });
+
+        if (!pendingTxn) {
+          const error = new Error("Invalid or unrecognized Razorpay order ID.");
+          error.statusCode = 404;
+          throw error;
+        }
+
+        // Idempotency: If already SUCCESS, return existing booking cleanly
+        if (pendingTxn.paymentStatus === "SUCCESS") {
+          if (pendingTxn.bookingId) {
+            const existingBooking = await bookingRepo.findOne({
+              where: { id: pendingTxn.bookingId },
+            });
+            if (existingBooking) return existingBooking;
+          }
+          const error = new Error("Razorpay order has already been processed or finalized.");
+          error.statusCode = 409;
+          throw error;
+        }
+
+        if (pendingTxn.paymentStatus !== "PENDING") {
+          const error = new Error("Razorpay order has already been processed or finalized.");
+          error.statusCode = 409;
+          throw error;
+        }
+
+        if (pendingTxn.userId !== userId) {
+          const error = new Error("Razorpay order does not belong to the current authenticated user.");
+          error.statusCode = 403;
+          throw error;
+        }
+      }
+
       // 1. Calculate Booking Amount & Fetch Seats with pessimistic write locking to prevent race conditions
       const calc = await this.calculateBookingAmount(
         userId,
@@ -310,7 +350,6 @@ export class BookingService {
 
       // 5. Razorpay TEST Payment Verification (if remainingCost > 0)
       let gatewayRefId = null;
-      let pendingTxn = null;
       if (remainingCost > 0) {
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
           const error = new Error("Razorpay TEST payment details (razorpay_order_id, razorpay_payment_id, razorpay_signature) are required to complete booking.");
@@ -318,34 +357,8 @@ export class BookingService {
           throw error;
         }
 
-        // Pessimistic write lock on the PENDING transaction record to prevent concurrent double-processing
-        pendingTxn = await txnRepo.findOne({
-          where: { razorpayOrderId: razorpay_order_id },
-          lock: { mode: "pessimistic_write" },
-        });
-
-        if (!pendingTxn) {
-          const error = new Error("Invalid or unrecognized Razorpay order ID.");
-          error.statusCode = 404;
-          throw error;
-        }
-
-        // Verification Rule 1: User Ownership Check
-        if (pendingTxn.userId !== userId) {
-          const error = new Error("Razorpay order does not belong to the current authenticated user.");
-          error.statusCode = 403;
-          throw error;
-        }
-
-        // Verification Rule 2: Order Status Lifecycle Check (Prevent Replay/Reuse)
-        if (pendingTxn.paymentStatus !== "PENDING") {
-          const error = new Error("Razorpay order has already been processed or finalized.");
-          error.statusCode = 409;
-          throw error;
-        }
-
         // Verification Rule 3: Payment Intent & Metadata Matching Check
-        if (pendingTxn.orderMetadata) {
+        if (pendingTxn && pendingTxn.orderMetadata) {
           try {
             const meta = JSON.parse(pendingTxn.orderMetadata);
             const sortedRequestSeats = Array.isArray(seatIds) ? seatIds.slice().sort().join(",") : "";
@@ -367,22 +380,28 @@ export class BookingService {
         // Idempotency check: prevent duplicate processing of the same Razorpay payment
         const existingTxn = await txnRepo.findOne({ where: { gatewayReferenceId: razorpay_payment_id } });
         if (existingTxn) {
+          if (existingTxn.bookingId) {
+            const existingBooking = await bookingRepo.findOne({ where: { id: existingTxn.bookingId } });
+            if (existingBooking) return existingBooking;
+          }
           const error = new Error("Duplicate Razorpay payment ID detected. Payment has already been processed.");
           error.statusCode = 409;
           throw error;
         }
 
-        // Verify HMAC Signature Server-Side
-        const isValidSignature = razorpayService.verifyPaymentSignature(
-          razorpay_order_id,
-          razorpay_payment_id,
-          razorpay_signature
-        );
+        // Verify HMAC Signature Server-Side (Skip if verified by Webhook)
+        if (razorpay_signature !== "WEBHOOK_VERIFIED") {
+          const isValidSignature = razorpayService.verifyPaymentSignature(
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature
+          );
 
-        if (!isValidSignature) {
-          const error = new Error("Invalid Razorpay TEST payment signature! Verification failed.");
-          error.statusCode = 400;
-          throw error;
+          if (!isValidSignature) {
+            const error = new Error("Invalid Razorpay TEST payment signature! Verification failed.");
+            error.statusCode = 400;
+            throw error;
+          }
         }
 
         // Verify Razorpay Order Amount Server-Side (Problem #1 fix)
@@ -622,6 +641,73 @@ export class BookingService {
 
     const bookings = await queryBuilder.getMany();
     return bookings || [];
+  }
+
+  /**
+   * Core Unified Booking & Payment Finalization (Shared by Frontend & Webhook)
+   */
+  async finalizeBookingAndPayment(razorpayOrderId, razorpayPaymentId) {
+    if (!razorpayOrderId || !razorpayPaymentId) {
+      const error = new Error("razorpayOrderId and razorpayPaymentId are required.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const txnRepo = AppDataSource.getRepository(TransactionEntity);
+    const pendingTxn = await txnRepo.findOne({
+      where: { razorpayOrderId },
+    });
+
+    if (!pendingTxn) {
+      const error = new Error("Transaction record not found for razorpayOrderId.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (pendingTxn.paymentStatus === "SUCCESS" && pendingTxn.bookingId) {
+      const bookingRepo = AppDataSource.getRepository("Booking");
+      const existingBooking = await bookingRepo.findOne({ where: { id: pendingTxn.bookingId } });
+      if (existingBooking) return existingBooking;
+    }
+
+    if (!pendingTxn.orderMetadata) {
+      const error = new Error("No orderMetadata found on PENDING Transaction.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const meta = JSON.parse(pendingTxn.orderMetadata);
+
+    let boardingPointId = meta.boardingPointId || null;
+    let droppingPointId = meta.droppingPointId || null;
+
+    if (!boardingPointId || !droppingPointId) {
+      const tripRepo = AppDataSource.getRepository("Trip");
+      const pointRepo = AppDataSource.getRepository("RoutePoint");
+      const trip = await tripRepo.findOne({ where: { id: meta.tripId } });
+      if (trip) {
+        const points = await pointRepo.find({ where: { routeId: trip.routeId } });
+        if (points && points.length >= 2) {
+          boardingPointId = boardingPointId || points[0].id;
+          droppingPointId = droppingPointId || points[points.length - 1].id;
+        }
+      }
+    }
+
+    const bookingPayload = {
+      tripId: meta.tripId,
+      seatIds: meta.seatIds,
+      boardingPointId,
+      droppingPointId,
+      passengers: meta.passengers || [],
+      couponCode: meta.couponCode,
+      useWallet: meta.useWallet,
+      razorpay_order_id: razorpayOrderId,
+      razorpay_payment_id: razorpayPaymentId,
+      razorpay_signature: "WEBHOOK_VERIFIED",
+    };
+
+    return await this.createBooking(pendingTxn.userId, bookingPayload);
   }
 }
 

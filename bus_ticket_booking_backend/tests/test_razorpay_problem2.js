@@ -274,8 +274,12 @@ async function runTests() {
   await seatRepo.save(seatsUserA[0]);
 
   try {
-    await bookingService.createBooking(userA.id, payload1); // Same orderId1 already SUCCESS
-    console.error("[✗] TEST 4 FAILED: Order replay was NOT blocked!");
+    const replayRes = await bookingService.createBooking(userA.id, payload1); // Same orderId1 already SUCCESS
+    if (replayRes && (replayRes.id === booking1.id || replayRes.pnr === booking1.pnr)) {
+      console.log(`[✓] TEST 4 PASSED: Replay attack correctly handled idempotently! Returned existing booking ID ${replayRes.id}.`);
+    } else {
+      console.error("[✗] TEST 4 FAILED: Order replay created a duplicate booking!");
+    }
   } catch (err) {
     if (err.message.includes("already been processed or finalized")) {
       console.log(`[✓] TEST 4 PASSED: Replay attack correctly blocked! Error: "${err.message}"`);
@@ -320,19 +324,18 @@ async function runTests() {
 
   mockRazorpayAmount = Math.round(Number(seatsUserB[0].price) * 100);
 
-  // Send 2 concurrent booking creation requests
-  const results5 = await Promise.allSettled([
+  const results = await Promise.allSettled([
     bookingService.createBooking(userB.id, payload5),
     bookingService.createBooking(userB.id, payload5),
   ]);
 
-  const fulfilled5 = results5.filter(r => r.status === "fulfilled");
-  const rejected5 = results5.filter(r => r.status === "rejected");
+  const fulfilled = results.filter((r) => r.status === "fulfilled");
+  const uniqueBookingIds = new Set(fulfilled.map((r) => r.value.id));
 
-  if (fulfilled5.length === 1 && rejected5.length === 1) {
-    console.log(`[✓] TEST 5 PASSED: Exactly 1 request succeeded and 1 request failed safely! Rejected reason: "${rejected5[0].reason?.message}"`);
+  if (fulfilled.length >= 1 && uniqueBookingIds.size === 1) {
+    console.log(`[✓] TEST 5 PASSED: Concurrent requests safely returned the same single booking ID (${Array.from(uniqueBookingIds)[0]}) without duplicate bookings!`);
   } else {
-    console.error(`[✗] TEST 5 FAILED: Concurrent requests behavior unexpected. Fulfilled: ${fulfilled5.length}, Rejected: ${rejected5.length}`);
+    console.error(`[✗] TEST 5 FAILED: Concurrent requests created duplicate bookings! Unique IDs: ${uniqueBookingIds.size}`);
   }
 
   // -------------------------------------------------------------
