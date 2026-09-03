@@ -19,7 +19,7 @@ const ticketService = new TicketService(bookingRepository, passengerRepository, 
 
 export const getTicketDetails = async (req, res) => {
   try {
-    const ticket = await ticketService.getTicketDetails(req.params.pnr);
+    const ticket = await ticketService.getTicketDetails(req.params.pnr, req.user);
     return res.status(200).json({ success: true, data: ticket });
   } catch (error) {
     return res.status(error.statusCode || 500).json({ success: false, message: error.message });
@@ -28,7 +28,7 @@ export const getTicketDetails = async (req, res) => {
 
 export const downloadTicketPDF = async (req, res) => {
   try {
-    await ticketService.generateTicketPDF(req.params.pnr, res);
+    await ticketService.generateTicketPDF(req.params.pnr, res, req.user);
   } catch (error) {
     return res.status(error.statusCode || 500).json({ success: false, message: error.message });
   }
@@ -36,7 +36,7 @@ export const downloadTicketPDF = async (req, res) => {
 
 export const cancelTicket = async (req, res) => {
   try {
-    const result = await ticketService.cancelTicket(req.user.id, req.body.pnr);
+    const result = await ticketService.cancelTicket(req.user, req.body.pnr);
     return res.status(200).json({ success: true, data: result });
   } catch (error) {
     return res.status(error.statusCode || 500).json({ success: false, message: error.message });

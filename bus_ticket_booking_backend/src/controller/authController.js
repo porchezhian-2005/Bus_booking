@@ -173,8 +173,9 @@ export const adminLogin = (req, res, next) => {
       return res.status(401).json({ success: false, message: info?.message || "Invalid admin credentials" });
     }
 
-    if (user.role !== "admin") {
-      return res.status(403).json({ success: false, message: "Access denied. Only Admin users can log in via this endpoint." });
+    const userRole = String(user.role || "").toUpperCase();
+    if (userRole !== "ADMIN" && userRole !== "SUPER_ADMIN") {
+      return res.status(403).json({ success: false, message: "Access denied. Only Admin and Super Admin users can log in via this endpoint." });
     }
 
     try {

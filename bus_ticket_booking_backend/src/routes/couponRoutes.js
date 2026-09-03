@@ -78,14 +78,14 @@ router.get("/", getActiveCoupons);
  */
 router.post("/validate", authenticateJWT, validateCoupon);
 
-// Admin Routes
-router.post("/", authenticateJWT, authorizeRoles("admin"), createCoupon);
+// Super Admin Routes
+router.post("/", authenticateJWT, authorizeRoles("SUPER_ADMIN"), createCoupon);
 
 /**
  * @swagger
  * /api/coupons/{id}:
  *   put:
- *     summary: Admin update existing coupon details [Admin Authorized]
+ *     summary: Super Admin update existing coupon details [Super Admin Authorized]
  *     tags: [Admin - Coupons]
  *     security:
  *       - bearerAuth: []
@@ -105,7 +105,7 @@ router.post("/", authenticateJWT, authorizeRoles("admin"), createCoupon);
  *       404:
  *         description: Coupon not found
  *   delete:
- *     summary: Admin delete a coupon [Admin Authorized]
+ *     summary: Super Admin delete a coupon [Super Admin Authorized]
  *     tags: [Admin - Coupons]
  *     security:
  *       - bearerAuth: []
@@ -118,8 +118,8 @@ router.post("/", authenticateJWT, authorizeRoles("admin"), createCoupon);
  *       200:
  *         description: Coupon deleted successfully
  */
-router.put("/:id", authenticateJWT, authorizeRoles("admin"), updateCoupon);
-router.delete("/:id", authenticateJWT, authorizeRoles("admin"), deleteCoupon);
+router.put("/:id", authenticateJWT, authorizeRoles("SUPER_ADMIN"), updateCoupon);
+router.delete("/:id", authenticateJWT, authorizeRoles("SUPER_ADMIN"), deleteCoupon);
 
 export default router;
 

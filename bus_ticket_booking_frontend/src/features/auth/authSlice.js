@@ -22,7 +22,7 @@ export const adminLoginUser = createAsyncThunk("auth/adminLoginUser", async (cre
     if (res.data.data.refreshToken) {
       localStorage.setItem("refreshToken", res.data.data.refreshToken);
     }
-    localStorage.setItem("userRole", "admin");
+    localStorage.setItem("userRole", res.data.data.user.role || "ADMIN");
     return res.data.data;
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || "Admin login failed");
@@ -86,7 +86,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.accessToken;
-        state.role = "admin";
+        state.role = action.payload.user?.role || "ADMIN";
       });
   },
 });

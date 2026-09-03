@@ -36,32 +36,23 @@ const router = express.Router();
  *       401:
  *         description: Unauthorized
  */
-router.get("/my-stats", authenticateJWT, getMyReferralStats);
+router.get("/my-stats", authenticateJWT, authorizeRoles("user"), getMyReferralStats);
 
 /**
  * @swagger
  * /api/referrals/all:
  *   get:
- *     summary: Admin view all referral records [Admin Authorized]
+ *     summary: Super Admin view all referral records [Super Admin Authorized]
  *     tags: [Admin - Referrals]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of all referral activity records
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success: { type: boolean, example: true }
- *                 data:
- *                   type: array
- *                   items: { $ref: '#/components/schemas/Referral' }
  *       403:
- *         description: Forbidden (Admin role required)
+ *         description: Forbidden (Super Admin role required)
  */
-router.get("/all", authenticateJWT, authorizeRoles("admin"), getAllReferralRecords);
+router.get("/all", authenticateJWT, authorizeRoles("SUPER_ADMIN"), getAllReferralRecords);
 
 export default router;
 

@@ -13,6 +13,7 @@ import BusSearchResults from "./pages/BusSearchResults";
 import Checkout from "./pages/Checkout";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import api from "./services/api";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { setCredentials, logout } from "./features/auth/authSlice";
 import { Toaster } from "react-hot-toast";
 import { ToastProvider } from "./components/Toast";
@@ -48,14 +49,60 @@ export function App() {
             <Route path="/" element={<Home />} />
             <Route path="/bus-results" element={<BusSearchResults />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/confirmation" element={<BookingConfirmation />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin/login" element={<Login />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/wallet" element={<Wallet />} />
-            <Route path="/my-bookings" element={<MyBookings />} />
-            <Route path="/profile" element={<Profile />} />
+
+            {/* Customer-Only Protected Routes */}
+            <Route
+              path="/my-bookings"
+              element={
+                <ProtectedRoute requireCustomer>
+                  <MyBookings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wallet"
+              element={
+                <ProtectedRoute requireCustomer>
+                  <Wallet />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute requireCustomer>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute requireCustomer>
+                  <Checkout />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/confirmation"
+              element={
+                <ProtectedRoute requireCustomer>
+                  <BookingConfirmation />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin-Only Protected Routes */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </main>
       </div>

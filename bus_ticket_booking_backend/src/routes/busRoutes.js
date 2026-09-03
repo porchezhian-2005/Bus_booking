@@ -147,7 +147,7 @@ router.get("/trips/:tripId/seats", getTripSeats);
  *       403:
  *         description: Forbidden (Admin role required)
  */
-router.get("/analytics", authenticateJWT, authorizeRoles("admin"), getAdminAnalytics);
+router.get("/analytics", authenticateJWT, authorizeRoles("SUPER_ADMIN"), getAdminAnalytics);
 
 /**
  * @swagger

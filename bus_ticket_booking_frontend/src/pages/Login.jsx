@@ -37,8 +37,8 @@ export const Login = () => {
       const result = await dispatch(loginUser({ email: data.email, password: data.password }));
       if (loginUser.fulfilled.match(result)) {
         toast.success("Signed in successfully!");
-        const loggedUserRole = result.payload.user?.role;
-        if (loggedUserRole === "admin") {
+        const loggedUserRole = String(result.payload.user?.role || "").toUpperCase();
+        if (loggedUserRole === "ADMIN" || loggedUserRole === "SUPER_ADMIN") {
           navigate("/admin");
         } else {
           navigate("/");

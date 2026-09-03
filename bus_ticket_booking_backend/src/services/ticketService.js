@@ -15,9 +15,9 @@ export class TicketService {
   }
 
   /**
-   * Get Ticket Details by PNR or Booking ID
+   * Get Ticket Details by PNR or Booking ID with Ownership / Role Validation
    */
-  async getTicketDetails(pnr) {
+  async getTicketDetails(pnr, user) {
     const booking = await this.bookingModel.findOne({
       where: { pnr },
       relations: { user: true, trip: { bus: true, route: true } },
@@ -27,6 +27,16 @@ export class TicketService {
       const error = new Error("Ticket not found for the given PNR");
       error.statusCode = 404;
       throw error;
+    }
+
+    if (user) {
+      const roleUpper = String(user.role || "").toUpperCase();
+      const isStaff = roleUpper === "ADMIN" || roleUpper === "SUPER_ADMIN";
+      if (!isStaff && booking.userId !== user.id) {
+        const error = new Error("Forbidden: You do not have permission to view this ticket.");
+        error.statusCode = 403;
+        throw error;
+      }
     }
 
     const passengers = await this.passengerModel.find({ where: { bookingId: booking.id } });
@@ -174,8 +184,8 @@ export class TicketService {
   /**
    * Generate PDF Ticket Stream for Download using PDFKit
    */
-  async generateTicketPDF(pnr, res) {
-    const ticket = await this.getTicketDetails(pnr);
+  async generateTicketPDF(pnr, res, user) {
+    const ticket = await this.getTicketDetails(pnr, user);
     const doc = new PDFDocument({ size: "A4", margin: 0 });
 
     res.setHeader("Content-Type", "application/pdf");
@@ -207,19 +217,24 @@ export class TicketService {
   /**
    * Cancel Ticket & Calculate Refund back to User Wallet
    */
-  async cancelTicket(userId, pnr) {
+  async cancelTicket(userOrId, pnr) {
     if (!pnr) {
       const error = new Error("PNR is required");
       error.statusCode = 400;
       throw error;
     }
 
+    const userId = typeof userOrId === "object" ? userOrId.id : userOrId;
+    const roleUpper = typeof userOrId === "object" ? String(userOrId.role || "").toUpperCase() : "USER";
+    const isStaff = roleUpper === "ADMIN" || roleUpper === "SUPER_ADMIN";
+
     return await AppDataSource.transaction(async (transactionalEntityManager) => {
       const bookingRepo = transactionalEntityManager.getRepository(this.bookingModel.target || "Booking");
       const passengerRepo = transactionalEntityManager.getRepository(this.passengerModel.target || "Passenger");
       const seatRepo = transactionalEntityManager.getRepository(this.seatModel.target || "Seat");
 
-      const booking = await bookingRepo.findOne({ where: { pnr, userId } });
+      const whereClause = isStaff ? { pnr } : { pnr, userId };
+      const booking = await bookingRepo.findOne({ where: whereClause });
 
       if (!booking) {
         const error = new Error("Booking record not found or does not belong to user.");

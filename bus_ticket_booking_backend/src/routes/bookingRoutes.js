@@ -76,14 +76,16 @@ router.post("/", authenticateJWT, createBooking);
  *                   items: { $ref: '#/components/schemas/Booking' }
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (User role required)
  */
-router.get("/my-bookings", authenticateJWT, getUserBookings);
+router.get("/my-bookings", authenticateJWT, authorizeRoles("user"), getUserBookings);
 
 /**
  * @swagger
  * /api/bookings/all:
  *   get:
- *     summary: Admin view all bookings with filters [Admin Authorized]
+ *     summary: Admin view all bookings with filters [Admin / Super Admin Authorized]
  *     tags: [Admin - Bookings]
  *     security:
  *       - bearerAuth: []
@@ -125,8 +127,8 @@ router.get("/my-bookings", authenticateJWT, getUserBookings);
  *                   type: array
  *                   items: { $ref: '#/components/schemas/Booking' }
  *       403:
- *         description: Forbidden (Admin role required)
+ *         description: Forbidden (Admin or Super Admin role required)
  */
-router.get("/all", authenticateJWT, authorizeRoles("admin"), getAllBookings);
+router.get("/all", authenticateJWT, authorizeRoles("admin", "SUPER_ADMIN"), getAllBookings);
 
 export default router;

@@ -2,6 +2,8 @@ import express from "express";
 import { getWallet, addMoney, getTransactionHistory } from "../controller/walletController.js";
 import { authenticateJWT } from "../middleware/auth.js";
 
+import { authorizeRoles } from "../middleware/roleAuth.js";
+
 const router = express.Router();
 
 /**
@@ -16,8 +18,8 @@ const router = express.Router();
  *       200:
  *         description: User wallet details & balance
  */
-router.get("/", authenticateJWT, getWallet);
-router.get("/balance", authenticateJWT, getWallet);
+router.get("/", authenticateJWT, authorizeRoles("user"), getWallet);
+router.get("/balance", authenticateJWT, authorizeRoles("user"), getWallet);
 
 /**
  * @swagger
@@ -40,7 +42,7 @@ router.get("/balance", authenticateJWT, getWallet);
  *       200:
  *         description: Money added to wallet successfully
  */
-router.post("/add-money", authenticateJWT, addMoney);
+router.post("/add-money", authenticateJWT, authorizeRoles("user"), addMoney);
 
 /**
  * @swagger
@@ -54,6 +56,6 @@ router.post("/add-money", authenticateJWT, addMoney);
  *       200:
  *         description: List of wallet transaction logs
  */
-router.get("/transactions", authenticateJWT, getTransactionHistory);
+router.get("/transactions", authenticateJWT, authorizeRoles("user"), getTransactionHistory);
 
 export default router;
