@@ -1,10 +1,5 @@
 import passport from "passport";
-import jwt from "jsonwebtoken";
-import AppDataSource from "../config/database.js";
-import UserEntity from "../models/User.js";
-import UserService from "../services/userService.js";
-import EmailService from "../services/emailService.js";
-import { generateTokens, blacklistToken } from "../middleware/auth.js";
+import authService from "../services/authService.js";
 import {
   registerSchema,
   loginSchema,
@@ -14,51 +9,17 @@ import {
   updateProfileSchema,
 } from "../validation/authValidation.js";
 
-import WalletEntity from "../models/Wallet.js";
-import WalletTransactionEntity from "../models/WalletTransaction.js";
-import WalletService from "../services/walletService.js";
-
-import ReferralEntity from "../models/Referral.js";
-import SystemConfigEntity from "../models/SystemConfig.js";
-import ReferralService from "../services/referralService.js";
-
-const userRepository = AppDataSource.getRepository(UserEntity);
-const walletRepository = AppDataSource.getRepository(WalletEntity);
-const transactionRepository = AppDataSource.getRepository(WalletTransactionEntity);
-const referralRepository = AppDataSource.getRepository(ReferralEntity);
-const configRepository = AppDataSource.getRepository(SystemConfigEntity);
-
-const emailService = new EmailService();
-const walletService = new WalletService(walletRepository, transactionRepository);
-const referralService = new ReferralService(
-  userRepository,
-  referralRepository,
-  walletService,
-  configRepository,
-  emailService
-);
-
-const userService = new UserService(
-  userRepository,
-  walletService,
-  referralService,
-  emailService
-);
-
 /**
  * Register User
  */
 export const register = async (req, res) => {
   try {
-    if (req.body && req.body.phone) {
-      req.body.phone = String(req.body.phone).replace(/\D/g, "").slice(-10);
-    }
     const { error, value } = registerSchema.validate(req.body);
     if (error) {
       return res.status(400).json({ success: false, message: error.details[0].message });
     }
 
-    const userData = await userService.registerUser(value);
+    const userData = await authService.register(value);
     return res.status(201).json({
       success: true,
       message: "Registration successful. Please check your email for the 6-digit OTP code to verify your account.",
@@ -82,7 +43,7 @@ export const verifyEmailOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: error.details[0].message });
     }
 
-    const result = await userService.verifyEmailOtp(value.email, value.otp);
+    const result = await authService.verifyEmailOtp(value.email, value.otp);
     return res.status(200).json({ success: true, message: result.message });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
@@ -102,7 +63,7 @@ export const resendVerificationOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: "Email is required" });
     }
 
-    const result = await userService.sendEmailOtp(email, "VERIFICATION");
+    const result = await authService.resendVerificationOtp(email);
     return res.status(200).json({ success: true, message: result.message });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
@@ -131,23 +92,12 @@ export const login = (req, res, next) => {
     }
 
     try {
-      const { accessToken, refreshToken } = await userService.loginUser(user);
+      const loginData = await authService.loginUser(user);
 
       return res.status(200).json({
         success: true,
         message: "User login successful",
-        data: {
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role,
-            referralCode: user.referralCode,
-          },
-          accessToken,
-          refreshToken,
-        },
+        data: loginData,
       });
     } catch (loginErr) {
       return res.status(500).json({ success: false, message: "Login failed" });
@@ -173,31 +123,18 @@ export const adminLogin = (req, res, next) => {
       return res.status(401).json({ success: false, message: info?.message || "Invalid admin credentials" });
     }
 
-    const userRole = String(user.role || "").toUpperCase();
-    if (userRole !== "ADMIN" && userRole !== "SUPER_ADMIN") {
-      return res.status(403).json({ success: false, message: "Access denied. Only Admin and Super Admin users can log in via this endpoint." });
-    }
-
     try {
-      const { accessToken, refreshToken } = await userService.loginUser(user);
+      const adminLoginData = await authService.adminLoginUser(user);
 
       return res.status(200).json({
         success: true,
         message: "Admin login successful",
-        data: {
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role,
-          },
-          accessToken,
-          refreshToken,
-        },
+        data: adminLoginData,
       });
     } catch (loginErr) {
-      return res.status(500).json({ success: false, message: "Admin login failed" });
+      const statusCode = loginErr.statusCode || 500;
+      const message = loginErr.statusCode ? loginErr.message : "Admin login failed";
+      return res.status(statusCode).json({ success: false, message });
     }
   })(req, res, next);
 };
@@ -207,7 +144,7 @@ export const adminLogin = (req, res, next) => {
  */
 export const refreshToken = async (req, res) => {
   try {
-    const tokens = await userService.refreshToken(req.body.refreshToken);
+    const tokens = await authService.refreshToken(req.body.refreshToken);
     return res.status(200).json({
       success: true,
       data: tokens,
@@ -230,7 +167,7 @@ export const forgotPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: error.details[0].message });
     }
 
-    const result = await userService.initiatePasswordReset(value.email);
+    const result = await authService.forgotPassword(value.email);
     return res.status(200).json({ success: true, message: result.message });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
@@ -250,7 +187,7 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: error.details[0].message });
     }
 
-    const result = await userService.resetPasswordWithOtp(value.email, value.otp, value.newPassword);
+    const result = await authService.resetPassword(value.email, value.otp, value.newPassword);
     return res.status(200).json({ success: true, message: result.message });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
@@ -265,7 +202,7 @@ export const resetPassword = async (req, res) => {
  */
 export const getProfile = async (req, res) => {
   try {
-    const user = await userService.getUserProfile(req.user.id);
+    const user = await authService.getProfile(req.user.id);
     return res.status(200).json({ success: true, data: user });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
@@ -285,7 +222,7 @@ export const updateProfile = async (req, res) => {
       return res.status(400).json({ success: false, message: error.details[0].message });
     }
 
-    const updatedProfile = await userService.updateUserProfile(req.user.id, value);
+    const updatedProfile = await authService.updateProfile(req.user.id, value);
     return res.status(200).json({ success: true, message: "Profile updated successfully", data: updatedProfile });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
@@ -304,7 +241,7 @@ export const requestEmailChange = async (req, res) => {
     if (!newEmail) {
       return res.status(400).json({ success: false, message: "New email address is required" });
     }
-    const result = await userService.requestEmailChangeOtp(req.user.id, newEmail);
+    const result = await authService.requestEmailChange(req.user.id, newEmail);
     return res.status(200).json({ success: true, message: result.message });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
@@ -323,7 +260,7 @@ export const verifyEmailChange = async (req, res) => {
     if (!newEmail || !otp) {
       return res.status(400).json({ success: false, message: "New email and OTP code are required" });
     }
-    const updatedUser = await userService.verifyAndChangeEmail(req.user.id, newEmail, otp);
+    const updatedUser = await authService.verifyEmailChange(req.user.id, newEmail, otp);
     return res.status(200).json({
       success: true,
       message: "Email address updated and verified successfully!",
@@ -348,7 +285,7 @@ export const logout = async (req, res) => {
       });
     }
 
-    const result = await userService.logoutUser(req.token);
+    const result = await authService.logout(req.user?.id, req.token);
     return res.status(200).json({
       success: true,
       message: result.message,
