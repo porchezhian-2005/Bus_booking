@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router";
 import toast from "react-hot-toast";
 import api from "../services/api";
+import adminApi from "../services/adminApi";
 import bookingApi from "../services/bookingApi";
 import {
   LayoutDashboard,
@@ -38,6 +39,9 @@ import {
   User,
   XCircle,
   AlertTriangle,
+  Edit,
+  Power,
+  Trash2,
 } from "lucide-react";
 
 export const formatIndianCurrency = (amount) => {
@@ -58,6 +62,19 @@ export const formatIndianCurrency = (amount) => {
   }
 
   return `₹${num.toFixed(0)}`;
+};
+
+export const formatDateTime = (isoStr) => {
+  if (!isoStr) return "—";
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return String(isoStr);
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 export const AdminDashboard = () => {
@@ -112,6 +129,19 @@ export const AdminDashboard = () => {
   const [discountValue, setDiscountValue] = useState("");
   const [minBookingAmount, setMinBookingAmount] = useState("");
 
+  // Modal Editing States
+  const [editingBus, setEditingBus] = useState(null);
+  const [decommissioningBus, setDecommissioningBus] = useState(null);
+  const [editingRoute, setEditingRoute] = useState(null);
+  const [editingRouteStops, setEditingRouteStops] = useState("");
+  const [editingTrip, setEditingTrip] = useState(null);
+  const [editTripDate, setEditTripDate] = useState("");
+  const [editTripDepTime, setEditTripDepTime] = useState("");
+  const [editTripArrTime, setEditTripArrTime] = useState("");
+  const [editTripPrice, setEditTripPrice] = useState("");
+  const [editTripStatus, setEditTripStatus] = useState("SCHEDULED");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
   useEffect(() => {
     fetchAllAdminData();
   }, []);
@@ -119,34 +149,34 @@ export const AdminDashboard = () => {
   const fetchAllAdminData = async () => {
     setLoading(true);
     try {
-      const aRes = await api.get("/buses/analytics").catch(() => null);
+      const aRes = await adminApi.getAnalytics().catch(() => null);
       if (aRes?.data?.data) setAnalytics(aRes.data.data);
 
-      const bRes = await api.get("/bookings/all").catch(() => null);
+      const bRes = await adminApi.getAllBookings().catch(() => null);
       if (bRes?.data?.data) setAllBookings(bRes.data.data);
 
-      const busRes = await api.get("/buses/all-buses").catch(() => null);
+      const busRes = await adminApi.getAllBuses().catch(() => null);
       if (busRes?.data?.data) {
         setBuses(busRes.data.data);
-        if (busRes.data.data.length > 0) setSelectedBusId(busRes.data.data[0].id);
+        if (busRes.data.data.length > 0 && !selectedBusId) setSelectedBusId(busRes.data.data[0].id);
       }
 
-      const rRes = await api.get("/buses/routes").catch(() => null);
+      const rRes = await adminApi.getAllRoutes().catch(() => null);
       if (rRes?.data?.data) {
         setRoutes(rRes.data.data);
-        if (rRes.data.data.length > 0) setSelectedRouteId(rRes.data.data[0].id);
+        if (rRes.data.data.length > 0 && !selectedRouteId) setSelectedRouteId(rRes.data.data[0].id);
       }
 
-      const tRes = await api.get("/buses/all-trips").catch(() => null);
+      const tRes = await adminApi.getAllTrips().catch(() => null);
       if (tRes?.data?.data) setTrips(tRes.data.data);
 
-      const cRes = await api.get("/coupons").catch(() => null);
+      const cRes = await adminApi.getCoupons().catch(() => null);
       if (cRes?.data?.data) setCoupons(cRes.data.data);
 
       const cfgRes = await bookingApi.getSystemConfig().catch(() => null);
       if (cfgRes?.data?.data) setConfig(cfgRes.data.data);
     } catch (err) {
-      console.error(err);
+      console.error("Admin dashboard fetch error:", err);
     } finally {
       setLoading(false);
     }
@@ -158,7 +188,7 @@ export const AdminDashboard = () => {
 
     setIsAddingBus(true);
     try {
-      await api.post("/buses", { 
+      await adminApi.addBus({ 
         name: busName, 
         busNumber, 
         busType, 
@@ -179,6 +209,43 @@ export const AdminDashboard = () => {
     }
   };
 
+  const handleUpdateBus = async (e) => {
+    e.preventDefault();
+    if (!editingBus || isSavingEdit) return;
+    setIsSavingEdit(true);
+    try {
+      await adminApi.updateBus(editingBus.id, {
+        name: editingBus.name,
+        busNumber: editingBus.busNumber,
+        busType: editingBus.busType,
+        totalSeats: Number(editingBus.totalSeats),
+        operatorName: editingBus.operatorName,
+      });
+      toast.success("Bus updated successfully!");
+      setEditingBus(null);
+      fetchAllAdminData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update bus");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDecommissionBus = async () => {
+    if (!decommissioningBus || isSavingEdit) return;
+    setIsSavingEdit(true);
+    try {
+      await adminApi.decommissionBus(decommissioningBus.id, {});
+      toast.success("Bus decommissioned successfully! Unbooked trips cancelled & active bookings refunded.");
+      setDecommissioningBus(null);
+      fetchAllAdminData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to decommission bus");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   const handleAddRoute = async (e) => {
     e.preventDefault();
     if (isAddingRoute) return;
@@ -195,7 +262,7 @@ export const AdminDashboard = () => {
 
     setIsAddingRoute(true);
     try {
-      await api.post("/buses/routes", {
+      await adminApi.addRoute({
         source: routeSource.trim(),
         destination: routeDestination.trim(),
         distanceKm: Number(distanceKm),
@@ -211,6 +278,26 @@ export const AdminDashboard = () => {
       toast.error(err.response?.data?.message || "Failed to create route");
     } finally {
       setIsAddingRoute(false);
+    }
+  };
+
+  const handleUpdateRouteStops = async (e) => {
+    e.preventDefault();
+    if (!editingRoute || isSavingEdit) return;
+    setIsSavingEdit(true);
+    try {
+      const stopsArr = editingRouteStops
+        ? editingRouteStops.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+      await adminApi.updateRouteStops(editingRoute.id, stopsArr);
+      toast.success("Route intermediate stops updated successfully!");
+      setEditingRoute(null);
+      setEditingRouteStops("");
+      fetchAllAdminData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update route stops");
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -230,7 +317,7 @@ export const AdminDashboard = () => {
 
     setIsSchedulingTrip(true);
     try {
-      await api.post("/buses/trips", {
+      await adminApi.createTrip({
         busId: selectedBusId,
         routeId: selectedRouteId,
         departureDate: tripDepartureDate,
@@ -239,8 +326,6 @@ export const AdminDashboard = () => {
         basePrice: Number(tripBasePrice),
       });
       toast.success("Trip scheduled and seats generated!");
-      setSelectedBusId("");
-      setSelectedRouteId("");
       setTripDepartureDate("");
       setTripDepartureTime("");
       setTripArrivalTime("");
@@ -253,11 +338,32 @@ export const AdminDashboard = () => {
     }
   };
 
+  const handleUpdateTrip = async (e) => {
+    e.preventDefault();
+    if (!editingTrip || isSavingEdit) return;
+    setIsSavingEdit(true);
+    try {
+      await adminApi.updateTrip(editingTrip.id, {
+        departureDate: editTripDate,
+        departureTime: editTripDepTime,
+        arrivalTime: editTripArrTime,
+        basePrice: Number(editTripPrice),
+        status: editTripStatus,
+      });
+      toast.success("Trip rescheduled / updated successfully!");
+      setEditingTrip(null);
+      fetchAllAdminData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update trip");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   const handleAddCoupon = async (e) => {
     e.preventDefault();
     try {
-      await api.post("/coupons", {
+      await adminApi.createCoupon({
         code: couponCode,
         discountType,
         discountValue: Number(discountValue),
@@ -277,7 +383,7 @@ export const AdminDashboard = () => {
   const handleUpdateConfig = async (e) => {
     e.preventDefault();
     try {
-      await api.put("/config", {
+      await adminApi.updateSystemConfig({
         walletMaxUsagePercent: Number(config.walletMaxUsagePercent),
         referralAmount: Number(config.referralAmount),
       });
@@ -993,19 +1099,52 @@ export const AdminDashboard = () => {
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className={`${textSubtle} border-b ${borderDivider}`}>
-                      <th className="pb-3 font-bold uppercase">Bus Name</th>
-                      <th className="pb-3 font-bold uppercase">Registration</th>
-                      <th className="pb-3 font-bold uppercase">Type</th>
-                      <th className="pb-3 font-bold uppercase">Capacity</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Bus Name</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Registration</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Type</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Capacity</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Status</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Created At</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] text-right whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${borderDivider}`}>
                     {buses.map((b) => (
                       <tr key={b.id} className={isDay ? "text-slate-800" : "text-slate-300"}>
-                        <td className={`py-3 font-bold ${textTitle}`}>{b.name}</td>
-                        <td className="py-3 font-semibold">{b.busNumber}</td>
-                        <td className="py-3 text-rose-500 font-semibold">{b.busType}</td>
-                        <td className="py-3 font-bold">{b.totalSeats || 30} Seats</td>
+                        <td className={`py-3 px-3 font-bold ${textTitle} whitespace-nowrap`}>{b.name}</td>
+                        <td className="py-3 px-3 font-semibold whitespace-nowrap">{b.busNumber}</td>
+                        <td className="py-3 px-3 text-rose-500 font-semibold whitespace-nowrap">{b.busType}</td>
+                        <td className="py-3 px-3 font-bold whitespace-nowrap">{b.totalSeats || 30} Seats</td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                            b.status === "DECOMMISSIONED"
+                              ? "bg-slate-500/20 text-slate-400 border-slate-500/30"
+                              : "bg-emerald-500/20 text-emerald-500 border-emerald-500/30"
+                          }`}>
+                            {b.status || "ACTIVE"}
+                          </span>
+                        </td>
+                        <td className={`py-3 px-3 ${textSubtle} whitespace-nowrap`}>{formatDateTime(b.createdAt)}</td>
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setEditingBus({ ...b })}
+                              className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-colors cursor-pointer"
+                              title="Edit Bus Details"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            {b.status !== "DECOMMISSIONED" && (
+                              <button
+                                onClick={() => setDecommissioningBus(b)}
+                                className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
+                                title="Decommission Bus"
+                              >
+                                <Power className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1088,21 +1227,43 @@ export const AdminDashboard = () => {
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className={`${textSubtle} border-b ${borderDivider}`}>
-                      <th className="pb-3 font-bold uppercase">Source</th>
-                      <th className="pb-3 font-bold uppercase">Destination</th>
-                      <th className="pb-3 font-bold uppercase">Distance</th>
-                      <th className="pb-3 font-bold uppercase">Duration</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Source</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Destination</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Distance</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Duration</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] max-w-[220px]">Intermediate Stops</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Created At</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] text-right whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${borderDivider}`}>
-                    {routes.map((r) => (
-                      <tr key={r.id} className={isDay ? "text-slate-800" : "text-slate-300"}>
-                        <td className={`py-3 font-bold ${textTitle}`}>{r.source}</td>
-                        <td className="py-3 font-bold text-emerald-500">{r.destination}</td>
-                        <td className="py-3 font-semibold">{r.distanceKm} km</td>
-                        <td className="py-3 font-semibold text-rose-500">{r.durationHours} hrs</td>
-                      </tr>
-                    ))}
+                    {routes.map((r) => {
+                      const stopsStr = Array.isArray(r.stops) ? r.stops.join(", ") : (r.stops || "Direct Route");
+                      return (
+                        <tr key={r.id} className={isDay ? "text-slate-800" : "text-slate-300"}>
+                          <td className={`py-3 px-3 font-bold ${textTitle} whitespace-nowrap`}>{r.source}</td>
+                          <td className="py-3 px-3 font-bold text-emerald-500 whitespace-nowrap">{r.destination}</td>
+                          <td className="py-3 px-3 font-semibold whitespace-nowrap">{r.distanceKm} km</td>
+                          <td className="py-3 px-3 font-semibold text-rose-500 whitespace-nowrap">{r.durationHours} hrs</td>
+                          <td className={`py-3 px-3 ${textSubtle} max-w-[220px] truncate`} title={stopsStr}>
+                            {stopsStr}
+                          </td>
+                          <td className={`py-3 px-3 ${textSubtle} whitespace-nowrap`}>{formatDateTime(r.createdAt)}</td>
+                          <td className="py-3 px-3 text-right whitespace-nowrap">
+                            <button
+                              onClick={() => {
+                                setEditingRoute(r);
+                                setEditingRouteStops(Array.isArray(r.stops) ? r.stops.join(", ") : (r.stops || ""));
+                              }}
+                              className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-colors cursor-pointer"
+                              title="Edit Route Stops"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1239,23 +1400,54 @@ export const AdminDashboard = () => {
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className={`${textSubtle} border-b ${borderDivider}`}>
-                      <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">Bus</th>
-                      <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">Route</th>
-                      <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">Date & Time</th>
-                      <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">Fare</th>
-                      <th className="pb-3 font-extrabold uppercase tracking-wider text-[11px]">Seats Left</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Bus</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Route</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Travel Departure</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Fare</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Seats</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Status</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] whitespace-nowrap">Created At</th>
+                      <th className="pb-3 px-3 font-extrabold uppercase tracking-wider text-[11px] text-right whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${borderDivider}`}>
                     {trips.slice((tripPage - 1) * TRIPS_PER_PAGE, tripPage * TRIPS_PER_PAGE).map((t) => (
                       <tr key={t.id} className={isDay ? "text-slate-800" : "text-slate-300"}>
-                        <td className={`py-3.5 font-bold ${textTitle}`}>{t.bus?.name || "Bus"}</td>
-                        <td className="py-3.5 font-semibold text-rose-500">
+                        <td className={`py-3 px-3 font-bold ${textTitle} whitespace-nowrap`}>{t.bus?.name || "Bus"}</td>
+                        <td className="py-3 px-3 font-semibold text-rose-500 whitespace-nowrap">
                           {t.route ? `${t.route.source} → ${t.route.destination}` : "Route"}
                         </td>
-                        <td className={`py-3.5 ${textSubtle}`}>{t.departureDate} at {t.departureTime}</td>
-                        <td className="py-3.5 font-black text-emerald-500">₹{t.basePrice}</td>
-                        <td className="py-3.5 font-bold">{t.availableSeats !== undefined ? t.availableSeats : 30} Seats</td>
+                        <td className={`py-3 px-3 ${textSubtle} whitespace-nowrap`}>{t.departureDate} at {t.departureTime}</td>
+                        <td className="py-3 px-3 font-black text-emerald-500 whitespace-nowrap">₹{t.basePrice}</td>
+                        <td className="py-3 px-3 font-bold whitespace-nowrap">{t.availableSeats !== undefined ? t.availableSeats : 30} Seats</td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                            t.status === "CANCELLED"
+                              ? "bg-rose-500/20 text-rose-500 border-rose-500/30"
+                              : t.status === "COMPLETED"
+                                ? "bg-blue-500/20 text-blue-500 border-blue-500/30"
+                                : "bg-emerald-500/20 text-emerald-500 border-emerald-500/30"
+                          }`}>
+                            {t.status || "SCHEDULED"}
+                          </span>
+                        </td>
+                        <td className={`py-3 px-3 ${textSubtle} whitespace-nowrap`}>{formatDateTime(t.createdAt)}</td>
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => {
+                              setEditingTrip(t);
+                              setEditTripDate(t.departureDate || "");
+                              setEditTripDepTime(t.departureTime || "");
+                              setEditTripArrTime(t.arrivalTime || "");
+                              setEditTripPrice(t.basePrice || "");
+                              setEditTripStatus(t.status || "SCHEDULED");
+                            }}
+                            className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-colors cursor-pointer"
+                            title="Edit / Reschedule Trip"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1499,8 +1691,278 @@ export const AdminDashboard = () => {
         )}
         </div>
       </main>
+
+      {/* EDIT BUS MODAL */}
+      {editingBus && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`max-w-md w-full ${bgCard} p-6 rounded-3xl border shadow-2xl space-y-4`}>
+            <h3 className={`text-base font-extrabold ${textTitle} flex items-center gap-2`}>
+              <Edit className="w-4 h-4 text-rose-500" /> Edit Bus Fleet Details
+            </h3>
+            <form onSubmit={handleUpdateBus} className="space-y-3">
+              <div>
+                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Bus Name</label>
+                <input
+                  type="text"
+                  value={editingBus.name || ""}
+                  onChange={(e) => setEditingBus({ ...editingBus, name: e.target.value })}
+                  className={`w-full px-4 py-2.5 rounded-xl ${bgInput} text-xs font-bold`}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Registration Number</label>
+                <input
+                  type="text"
+                  value={editingBus.busNumber || ""}
+                  onChange={(e) => setEditingBus({ ...editingBus, busNumber: e.target.value })}
+                  className={`w-full px-4 py-2.5 rounded-xl ${bgInput} text-xs font-bold`}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Operator Name</label>
+                <input
+                  type="text"
+                  value={editingBus.operatorName || ""}
+                  onChange={(e) => setEditingBus({ ...editingBus, operatorName: e.target.value })}
+                  className={`w-full px-4 py-2.5 rounded-xl ${bgInput} text-xs font-bold`}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Bus Type</label>
+                <select
+                  value={editingBus.busType || ""}
+                  onChange={(e) => setEditingBus({ ...editingBus, busType: e.target.value })}
+                  className={`w-full px-4 py-2.5 rounded-xl ${bgInput} text-xs font-bold cursor-pointer`}
+                  required
+                >
+                  <option value="AC Sleeper (2+1)">AC Sleeper (2+1)</option>
+                  <option value="AC Seater (2+2)">AC Seater (2+2)</option>
+                  <option value="Non-AC Sleeper (2+1)">Non-AC Sleeper (2+1)</option>
+                  <option value="Non-AC Seater (2+2)">Non-AC Seater (2+2)</option>
+                </select>
+              </div>
+              <div>
+                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Total Seats</label>
+                <input
+                  type="number"
+                  value={editingBus.totalSeats || 30}
+                  onChange={(e) => setEditingBus({ ...editingBus, totalSeats: e.target.value })}
+                  className={`w-full px-4 py-2.5 rounded-xl ${bgInput} text-xs font-bold`}
+                  required
+                  min="10"
+                  max="60"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingBus(null)}
+                  disabled={isSavingEdit}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors border disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isDay
+                      ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+                      : "bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="px-5 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingEdit ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DECOMMISSION BUS MODAL */}
+      {decommissioningBus && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`max-w-md w-full ${bgCard} p-6 rounded-3xl border border-rose-500/30 shadow-2xl space-y-4`}>
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/30">
+              <Power className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className={`text-base font-extrabold ${textTitle}`}>Decommission Bus Fleet</h3>
+              <p className={`text-xs ${textSubtle}`}>
+                Decommissioning <strong className={textTitle}>{decommissioningBus.name} ({decommissioningBus.busNumber})</strong> will automatically cancel unbooked future trips and refund active passengers to their wallet.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDecommissioningBus(null)}
+                disabled={isSavingEdit}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors border disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isDay
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDecommissionBus}
+                disabled={isSavingEdit}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-lg shadow-rose-600/30 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSavingEdit ? "Decommissioning..." : "Confirm Decommission"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT ROUTE STOPS MODAL */}
+      {editingRoute && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`max-w-md w-full ${bgCard} p-6 rounded-3xl border shadow-2xl space-y-4`}>
+            <h3 className={`text-base font-extrabold ${textTitle} flex items-center gap-2`}>
+              <Edit className="w-4 h-4 text-indigo-500" /> Edit Route Intermediate Stops
+            </h3>
+            <p className={`text-xs ${textSubtle}`}>
+              Updating stops for <strong className={textTitle}>{editingRoute.source} → {editingRoute.destination}</strong>
+            </p>
+            <form onSubmit={handleUpdateRouteStops} className="space-y-3">
+              <div>
+                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>
+                  Intermediate Boarding / Drop Stops (Comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={editingRouteStops}
+                  onChange={(e) => setEditingRouteStops(e.target.value)}
+                  placeholder="e.g. Vellore, Ambur, Hosur"
+                  className={`w-full px-4 py-2.5 rounded-xl ${bgInput} text-xs font-bold`}
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingRoute(null)}
+                  disabled={isSavingEdit}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors border disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isDay
+                      ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+                      : "bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingEdit ? "Saving..." : "Update Route Stops"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT / RESCHEDULE TRIP MODAL */}
+      {editingTrip && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`max-w-md w-full ${bgCard} p-6 rounded-3xl border shadow-2xl space-y-4`}>
+            <h3 className={`text-base font-extrabold ${textTitle} flex items-center gap-2`}>
+              <Edit className="w-4 h-4 text-emerald-500" /> Edit / Reschedule Trip
+            </h3>
+            <form onSubmit={handleUpdateTrip} className="space-y-3">
+              <div>
+                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Departure Date</label>
+                <input
+                  type="date"
+                  value={editTripDate}
+                  onChange={(e) => setEditTripDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                  className={`w-full px-4 py-2 rounded-xl ${bgInput} text-xs font-bold`}
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Departure Time</label>
+                <input
+                  type="text"
+                  value={editTripDepTime}
+                  onChange={(e) => setEditTripDepTime(e.target.value)}
+                  className={`w-full px-4 py-2 rounded-xl ${bgInput} text-xs font-bold`}
+                  placeholder="e.g. 21:30 or 09:30 PM"
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Arrival Time</label>
+                <input
+                  type="text"
+                  value={editTripArrTime}
+                  onChange={(e) => setEditTripArrTime(e.target.value)}
+                  className={`w-full px-4 py-2 rounded-xl ${bgInput} text-xs font-bold`}
+                  placeholder="e.g. 04:00 AM"
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Base Ticket Price (₹)</label>
+                <input
+                  type="number"
+                  value={editTripPrice}
+                  onChange={(e) => setEditTripPrice(e.target.value)}
+                  className={`w-full px-4 py-2 rounded-xl ${bgInput} text-xs font-bold`}
+                  min="1"
+                  required
+                />
+              </div>
+              <div>
+                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Trip Status</label>
+                <select
+                  value={editTripStatus}
+                  onChange={(e) => setEditTripStatus(e.target.value)}
+                  className={`w-full px-4 py-2 rounded-xl ${bgInput} text-xs font-bold cursor-pointer`}
+                  required
+                >
+                  <option value="SCHEDULED">SCHEDULED</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTrip(null)}
+                  disabled={isSavingEdit}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors border disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isDay
+                      ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+                      : "bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingEdit ? "Saving..." : "Update Trip"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default AdminDashboard;
+
