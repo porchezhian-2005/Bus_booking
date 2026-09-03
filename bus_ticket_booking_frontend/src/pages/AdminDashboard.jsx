@@ -148,9 +148,12 @@ export const AdminDashboard = () => {
 
   const fetchAllAdminData = async () => {
     setLoading(true);
+    const isSuperAdmin = String(role || "").toUpperCase() === "SUPER_ADMIN";
     try {
-      const aRes = await adminApi.getAnalytics().catch(() => null);
-      if (aRes?.data?.data) setAnalytics(aRes.data.data);
+      if (isSuperAdmin) {
+        const aRes = await adminApi.getAnalytics().catch(() => null);
+        if (aRes?.data?.data) setAnalytics(aRes.data.data);
+      }
 
       const bRes = await adminApi.getAllBookings().catch(() => null);
       if (bRes?.data?.data) setAllBookings(bRes.data.data);
@@ -170,11 +173,13 @@ export const AdminDashboard = () => {
       const tRes = await adminApi.getAllTrips().catch(() => null);
       if (tRes?.data?.data) setTrips(tRes.data.data);
 
-      const cRes = await adminApi.getCoupons().catch(() => null);
-      if (cRes?.data?.data) setCoupons(cRes.data.data);
+      if (isSuperAdmin) {
+        const cRes = await adminApi.getCoupons().catch(() => null);
+        if (cRes?.data?.data) setCoupons(cRes.data.data);
 
-      const cfgRes = await bookingApi.getSystemConfig().catch(() => null);
-      if (cfgRes?.data?.data) setConfig(cfgRes.data.data);
+        const cfgRes = await bookingApi.getSystemConfig().catch(() => null);
+        if (cfgRes?.data?.data) setConfig(cfgRes.data.data);
+      }
     } catch (err) {
       console.error("Admin dashboard fetch error:", err);
     } finally {
@@ -432,6 +437,8 @@ export const AdminDashboard = () => {
   const confirmedBookingsList = allBookings.filter((b) => b.bookingStatus === "CONFIRMED" || b.bookingStatus === "booked" || !b.bookingStatus);
   const cancelledBookingsList = allBookings.filter((b) => b.bookingStatus === "CANCELLED" || b.paymentStatus === "FAILED");
 
+  const isSuperAdmin = String(role || "").toUpperCase() === "SUPER_ADMIN";
+
   // Fuse Sidebar Navigation Structure
   const sidebarGroups = [
     {
@@ -439,8 +446,10 @@ export const AdminDashboard = () => {
       subtitle: "Overview of key metrics",
       items: [
         { id: "Project", label: "Overview", icon: LayoutDashboard },
-        { id: "Analytics", label: "Analytics & Reports", icon: BarChart3 },
-        { id: "Finance", label: "Finance & Revenue", icon: DollarSign },
+        ...(isSuperAdmin ? [
+          { id: "Analytics", label: "Analytics & Reports", icon: BarChart3 },
+          { id: "Finance", label: "Finance & Revenue", icon: DollarSign },
+        ] : []),
       ],
     },
     {
@@ -459,8 +468,10 @@ export const AdminDashboard = () => {
         { id: "Booked Users", label: "Booked Passengers", icon: UserCheck },
         { id: "Bookings", label: "Passenger Bookings", icon: Ticket },
         { id: "Cancelled Bookings", label: "Cancelled Bookings", icon: XCircle },
-        { id: "Coupons", label: "Promo Coupons", icon: Tag },
-        { id: "Config", label: "System Policy", icon: Settings },
+        ...(isSuperAdmin ? [
+          { id: "Coupons", label: "Promo Coupons", icon: Tag },
+          { id: "Config", label: "System Policy", icon: Settings },
+        ] : []),
       ],
     },
   ];

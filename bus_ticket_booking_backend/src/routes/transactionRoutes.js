@@ -17,20 +17,22 @@ const router = express.Router();
  *       200:
  *         description: List of payment transactions
  */
-router.get("/my-transactions", authenticateJWT, getUserTransactions);
+router.get("/my-transactions", authenticateJWT, authorizeRoles("user"), getUserTransactions);
 
 /**
  * @swagger
  * /api/transactions/all:
  *   get:
- *     summary: Admin view all payment transactions & reports
+ *     summary: Super Admin view all payment transactions & reports [Super Admin Authorized]
  *     tags: [Transactions]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of all system transactions
+ *       403:
+ *         description: Forbidden (Super Admin role required)
  */
-router.get("/all", authenticateJWT, authorizeRoles("admin"), getAllTransactions);
+router.get("/all", authenticateJWT, authorizeRoles("SUPER_ADMIN"), getAllTransactions);
 
 export default router;

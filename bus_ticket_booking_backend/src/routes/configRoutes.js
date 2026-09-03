@@ -78,8 +78,8 @@ export const validateUpdateConfig = (req, res, next) => {
   next();
 };
 
-router.get("/", authenticateJWT, authorizeRoles("admin"), getSystemConfig);
-router.put("/", authenticateJWT, authorizeRoles("admin"), validateUpdateConfig, updateSystemConfig);
+router.get("/", authenticateJWT, authorizeRoles("SUPER_ADMIN"), getSystemConfig);
+router.put("/", authenticateJWT, authorizeRoles("SUPER_ADMIN"), validateUpdateConfig, updateSystemConfig);
 
 
 export default router;

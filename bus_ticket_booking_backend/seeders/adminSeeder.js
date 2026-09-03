@@ -23,7 +23,7 @@ export const seedAdminUser = async () => {
         email: adminEmail,
         phone: process.env.ADMIN_PHONE || "9000000000",
         password: hashedPassword,
-        role: "admin",
+        role: "SUPER_ADMIN",
         isVerified: true, // Admin is auto-verified
         isLoggedIn: false,
         welcomeEmailSent: true,
@@ -31,8 +31,9 @@ export const seedAdminUser = async () => {
       });
 
       await userRepository.save(adminUser);
-      console.log(`✅ Default Admin user created with universal referral code (REDBUS500): (${adminEmail})`);
+      console.log(`✅ Default Super Admin user created with universal referral code (REDBUS500): (${adminEmail})`);
     } else {
+      existingAdmin.role = "SUPER_ADMIN";
       existingAdmin.referralCode = "REDBUS500";
       await userRepository.save(existingAdmin);
     }
