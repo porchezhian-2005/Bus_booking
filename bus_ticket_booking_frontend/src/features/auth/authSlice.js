@@ -8,7 +8,8 @@ export const loginUser = createAsyncThunk("auth/loginUser", async (credentials, 
     if (res.data.data.refreshToken) {
       localStorage.setItem("refreshToken", res.data.data.refreshToken);
     }
-    localStorage.setItem("userRole", res.data.data.user.role || "user");
+    const role = res.data.data.user.role || "user";
+    localStorage.setItem("userRole", role);
     return res.data.data;
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || "Login failed");
@@ -22,7 +23,8 @@ export const adminLoginUser = createAsyncThunk("auth/adminLoginUser", async (cre
     if (res.data.data.refreshToken) {
       localStorage.setItem("refreshToken", res.data.data.refreshToken);
     }
-    localStorage.setItem("userRole", res.data.data.user.role || "ADMIN");
+    const role = res.data.data.user.role || "admin";
+    localStorage.setItem("userRole", role);
     return res.data.data;
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || "Admin login failed");
@@ -53,7 +55,7 @@ const authSlice = createSlice({
     setCredentials: (state, action) => {
       if (action.payload.user) {
         state.user = action.payload.user;
-        state.role = action.payload.user.role || localStorage.getItem("userRole") || "user";
+        state.role = action.payload.user.role || action.payload.role || localStorage.getItem("userRole") || "user";
       }
       if (action.payload.token) state.token = action.payload.token;
     },
@@ -86,7 +88,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.accessToken;
-        state.role = action.payload.user?.role || "ADMIN";
+        state.role = action.payload.user?.role || "admin";
       });
   },
 });

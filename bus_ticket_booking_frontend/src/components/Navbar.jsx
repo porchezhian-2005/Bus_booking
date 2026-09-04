@@ -46,87 +46,68 @@ export const Navbar = () => {
 
   return (
     <>
-      {/* Eye Protection Overlay Filter (Active in both Day & Night modes) */}
+      {/* Eye Protection Overlay Filter */}
       {eyeProtection && <div className="eye-protection-filter" />}
 
-      <nav className="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-xl border-b border-rose-500/20 px-4 md:px-8 py-3 shadow-lg shadow-rose-950/20">
-        <div className="w-full flex items-center justify-between px-2 md:px-4">
+      <nav className="sticky top-0 z-50 bg-[#0f172a]/95 backdrop-blur-xl border-b border-rose-500/20 px-2 sm:px-6 md:px-8 py-2.5 shadow-lg shadow-rose-950/20 w-full max-w-full overflow-x-hidden">
+        <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-2 px-1 sm:px-4">
           {/* Brand Logo */}
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-red-500 flex items-center justify-center shadow-lg shadow-rose-600/30 group-hover:scale-105 transition-all">
-              <Bus className="w-6 h-6 text-white" />
+          <Link to={String(role || "").toUpperCase() === "ADMIN" || String(role || "").toUpperCase() === "SUPER_ADMIN" ? "/admin" : "/"} className="flex items-center gap-2 group flex-shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-red-500 flex items-center justify-center shadow-lg shadow-rose-600/30 group-hover:scale-105 transition-all">
+              <Bus className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black tracking-tight text-white flex items-center gap-1">
+              <span className="text-base sm:text-xl font-black tracking-tight text-white flex items-center gap-1">
                 red<span className="text-rose-500">Bus</span>
-                <span className="text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">PRO</span>
+                <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-widest px-1 sm:px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">PRO</span>
               </span>
-              <span className="text-[10px] text-slate-400 font-medium tracking-wide">Bus Tickets & Travel</span>
+              <span className="text-[10px] text-slate-400 font-medium tracking-wide hidden sm:block">Bus Tickets & Travel</span>
             </div>
           </Link>
 
           {/* Navigation Links & Display Controls */}
-          <div className="flex items-center gap-2 sm:gap-3 text-sm font-medium">
+          <div className="flex items-center gap-1.5 sm:gap-3 text-xs sm:text-sm font-medium flex-shrink-0">
             <Link
               to="/"
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                 isActive("/")
                   ? "bg-rose-500/15 text-rose-500 border border-rose-500/40 shadow-sm"
                   : "text-slate-300 hover:text-white hover:bg-slate-800/50"
               }`}
+              title="Bus Tickets"
             >
               <Bus className="w-4 h-4 text-rose-500" />
-              <span>Bus Tickets</span>
+              <span className="hidden sm:inline">Bus Tickets</span>
             </Link>
 
-            {/* Display Mode Control Toolbar (Day/Night & Eye Protection) */}
-            <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10">
-              {/* Day / Night Mode Toggle */}
+            {/* Display Mode Control Toolbar */}
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10">
               <button
                 type="button"
                 onClick={toggleTheme}
-                title={themeMode === "night" ? "Switch to Day Mode (Light Theme)" : "Switch to Night Mode (Dark Theme)"}
+                title={themeMode === "night" ? "Switch to Day Mode" : "Switch to Night Mode"}
                 className={`p-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1 transition-all cursor-pointer ${
                   themeMode === "day"
                     ? "bg-amber-400 text-slate-950 font-bold shadow-md"
                     : "text-slate-300 hover:text-white hover:bg-slate-800"
                 }`}
               >
-                {themeMode === "day" ? (
-                  <>
-                    <Moon className="w-4 h-4 text-indigo-600" />
-                    <span className="hidden lg:inline text-[11px]">Night</span>
-                  </>
-                ) : (
-                  <>
-                    <Sun className="w-4 h-4 text-amber-400" />
-                    <span className="hidden lg:inline text-[11px]">Day</span>
-                  </>
-                )}
+                {themeMode === "day" ? <Moon className="w-4 h-4 text-indigo-600" /> : <Sun className="w-4 h-4 text-amber-400" />}
+                <span className="hidden lg:inline text-[11px]">{themeMode === "day" ? "Night" : "Day"}</span>
               </button>
 
-              {/* Eye Protection Toggle (Common for both Day & Night modes) */}
               <button
                 type="button"
                 onClick={toggleEyeProtection}
-                title={eyeProtection ? "Disable Eye Protection Filter" : "Enable Eye Protection Warm Filter (Reduces Blue Light)"}
+                title={eyeProtection ? "Disable Eye Protection" : "Enable Eye Protection Warm Filter"}
                 className={`p-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1 transition-all cursor-pointer ${
                   eyeProtection
                     ? "bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-sm shadow-amber-500/20"
                     : "text-slate-400 hover:text-white hover:bg-slate-800"
                 }`}
               >
-                {eyeProtection ? (
-                  <>
-                    <Eye className="w-4 h-4 text-amber-400" />
-                    <span className="hidden lg:inline text-[11px]">Eye Shield ON</span>
-                  </>
-                ) : (
-                  <>
-                    <EyeOff className="w-4 h-4 text-slate-400" />
-                    <span className="hidden lg:inline text-[11px]">Eye Shield</span>
-                  </>
-                )}
+                {eyeProtection ? <Eye className="w-4 h-4 text-amber-400" /> : <EyeOff className="w-4 h-4 text-slate-400" />}
+                <span className="hidden lg:inline text-[11px]">Eye Shield</span>
               </button>
             </div>
 
@@ -135,87 +116,66 @@ export const Navbar = () => {
                 {String(role || "").toUpperCase() === "ADMIN" || String(role || "").toUpperCase() === "SUPER_ADMIN" ? (
                   <Link
                     to="/admin"
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                       isActive("/admin")
                         ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/40"
                         : "text-slate-300 hover:text-white hover:bg-slate-800/50"
                     }`}
+                    title="Admin Panel"
                   >
                     <LayoutDashboard className="w-4 h-4 text-indigo-400" />
-                    <span>Admin Panel</span>
+                    <span className="hidden sm:inline">Admin Panel</span>
                   </Link>
                 ) : (
                   <>
                     <Link
                       to="/my-bookings"
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                      className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                         isActive("/my-bookings")
                           ? "bg-rose-500/15 text-rose-500 border border-rose-500/40"
                           : "text-slate-300 hover:text-white hover:bg-slate-800/50"
                       }`}
+                      title="My Bookings"
                     >
                       <Ticket className="w-4 h-4 text-rose-400" />
-                      <span>My Bookings</span>
+                      <span className="hidden md:inline">My Bookings</span>
                     </Link>
 
                     <Link
                       to="/wallet"
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                      className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                         isActive("/wallet")
                           ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/40"
                           : "text-slate-300 hover:text-white hover:bg-slate-800/50"
                       }`}
+                      title="Wallet"
                     >
                       <Wallet className="w-4 h-4 text-emerald-400" />
-                      <span>Wallet</span>
-                    </Link>
-
-                    <Link
-                      to="/profile"
-                      className={`hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                        isActive("/profile")
-                          ? "bg-rose-500/15 text-rose-500 border border-rose-500/40 shadow-sm"
-                          : "text-slate-300 hover:text-white hover:bg-slate-800/50"
-                      }`}
-                    >
-                      <User className="w-4 h-4 text-rose-500" />
-                      <span>{user?.name || "Profile"}</span>
+                      <span className="hidden md:inline">Wallet</span>
                     </Link>
                   </>
                 )}
 
                 <button
                   onClick={handleLogout}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                     themeMode === "day"
-                      ? "bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100 font-bold"
-                      : "bg-slate-800/80 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border-slate-700/60 hover:border-rose-500/40"
+                      ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800"
+                      : "bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-slate-200"
                   }`}
+                  title="Logout"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
+                  <LogOut className="w-4 h-4 text-rose-400" />
+                  <span className="hidden sm:inline">Logout</span>
                 </button>
               </>
             ) : (
-              <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="flex items-center gap-2">
                 <Link
                   to="/login"
-                  className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                    isActive("/login")
-                      ? "bg-rose-600 text-white font-bold"
-                      : themeMode === "day"
-                      ? "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 shadow-sm"
-                      : "text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60"
-                  }`}
+                  className="px-3.5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-rose-600/30 transition-all"
                 >
                   Sign In
-                </Link>
-                <Link
-                  to="/register"
-                  className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-rose-600/25 transition-all"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Register</span>
                 </Link>
               </div>
             )}

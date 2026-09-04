@@ -1,20 +1,41 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router";
 import { adminLoginUser } from "../features/auth/authSlice";
+import { Eye, EyeOff } from "lucide-react";
+import toast from "react-hot-toast";
 
 export const AdminLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, error } = useSelector((state) => state.auth);
+  const { token, role, loading, error } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (token && role) {
+      const normalizedRole = String(role).toUpperCase();
+      const isAdmin = normalizedRole === "ADMIN" || normalizedRole === "SUPER_ADMIN";
+      if (isAdmin) {
+        navigate("/admin", { replace: true });
+      } else if (normalizedRole === "USER") {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [token, role, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const result = await dispatch(adminLoginUser({ email, password }));
     if (adminLoginUser.fulfilled.match(result)) {
-      navigate("/admin");
+      toast.success("Admin login successful!");
+      const loggedUserRole = String(result.payload.user?.role || "").toUpperCase();
+      if (loggedUserRole === "ADMIN" || loggedUserRole === "SUPER_ADMIN") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
     }
   };
 
@@ -40,14 +61,25 @@ export const AdminLogin = () => {
 
           <div>
             <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Admin Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl glass-input"
-              placeholder="Enter admin password"
-              required
-            />
+            <div className="relative flex items-center">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 pr-10 rounded-xl glass-input text-xs font-bold"
+                placeholder="Enter admin password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                title={showPassword ? "Hide Password" : "Show Password"}
+                aria-label={showPassword ? "Hide Password" : "Show Password"}
+                className="absolute right-3 text-slate-400 hover:text-white cursor-pointer transition-colors p-1"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4 text-indigo-400" /> : <Eye className="w-4 h-4 text-slate-400" />}
+              </button>
+            </div>
           </div>
 
           <button
