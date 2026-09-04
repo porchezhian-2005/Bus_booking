@@ -148,12 +148,9 @@ export const AdminDashboard = () => {
 
   const fetchAllAdminData = async () => {
     setLoading(true);
-    const isSuperAdmin = String(role || "").toUpperCase() === "SUPER_ADMIN";
     try {
-      if (isSuperAdmin) {
-        const aRes = await adminApi.getAnalytics().catch(() => null);
-        if (aRes?.data?.data) setAnalytics(aRes.data.data);
-      }
+      const aRes = await adminApi.getAnalytics().catch(() => null);
+      if (aRes?.data?.data) setAnalytics(aRes.data.data);
 
       const bRes = await adminApi.getAllBookings().catch(() => null);
       if (bRes?.data?.data) setAllBookings(bRes.data.data);
@@ -173,13 +170,11 @@ export const AdminDashboard = () => {
       const tRes = await adminApi.getAllTrips().catch(() => null);
       if (tRes?.data?.data) setTrips(tRes.data.data);
 
-      if (isSuperAdmin) {
-        const cRes = await adminApi.getCoupons().catch(() => null);
-        if (cRes?.data?.data) setCoupons(cRes.data.data);
+      const cRes = await adminApi.getCoupons().catch(() => null);
+      if (cRes?.data?.data) setCoupons(cRes.data.data);
 
-        const cfgRes = await bookingApi.getSystemConfig().catch(() => null);
-        if (cfgRes?.data?.data) setConfig(cfgRes.data.data);
-      }
+      const cfgRes = await bookingApi.getSystemConfig().catch(() => null);
+      if (cfgRes?.data?.data) setConfig(cfgRes.data.data);
     } catch (err) {
       console.error("Admin dashboard fetch error:", err);
     } finally {
@@ -398,9 +393,10 @@ export const AdminDashboard = () => {
     }
   };
 
-  const effectiveRole = user?.role || role || localStorage.getItem("userRole");
+  const effectiveRole = String(user?.role || role || localStorage.getItem("userRole") || "").toUpperCase();
+  const isAdmin = effectiveRole === "ADMIN" || effectiveRole === "SUPER_ADMIN";
 
-  if (!token || effectiveRole !== "admin") {
+  if (!token || !isAdmin) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4">
         <div className="max-w-md w-full glass-card p-8 rounded-3xl border border-rose-500/30 text-center space-y-5 shadow-2xl">
@@ -409,7 +405,7 @@ export const AdminDashboard = () => {
           </div>
           <div className="space-y-1">
             <h2 className="text-2xl font-black text-white">Admin Portal Restricted</h2>
-            <p className="text-xs text-slate-400">You must be logged in with a Super Admin account to access the Operator Dashboard.</p>
+            <p className="text-xs text-slate-400">You must be logged in with an Admin account to access the Operator Dashboard.</p>
           </div>
           <Link
             to="/login"
@@ -437,8 +433,6 @@ export const AdminDashboard = () => {
   const confirmedBookingsList = allBookings.filter((b) => b.bookingStatus === "CONFIRMED" || b.bookingStatus === "booked" || !b.bookingStatus);
   const cancelledBookingsList = allBookings.filter((b) => b.bookingStatus === "CANCELLED" || b.paymentStatus === "FAILED");
 
-  const isSuperAdmin = String(role || "").toUpperCase() === "SUPER_ADMIN";
-
   // Fuse Sidebar Navigation Structure
   const sidebarGroups = [
     {
@@ -446,10 +440,8 @@ export const AdminDashboard = () => {
       subtitle: "Overview of key metrics",
       items: [
         { id: "Project", label: "Overview", icon: LayoutDashboard },
-        ...(isSuperAdmin ? [
-          { id: "Analytics", label: "Analytics & Reports", icon: BarChart3 },
-          { id: "Finance", label: "Finance & Revenue", icon: DollarSign },
-        ] : []),
+        { id: "Analytics", label: "Analytics & Reports", icon: BarChart3 },
+        { id: "Finance", label: "Finance & Revenue", icon: DollarSign },
       ],
     },
     {
@@ -468,10 +460,8 @@ export const AdminDashboard = () => {
         { id: "Booked Users", label: "Booked Passengers", icon: UserCheck },
         { id: "Bookings", label: "Passenger Bookings", icon: Ticket },
         { id: "Cancelled Bookings", label: "Cancelled Bookings", icon: XCircle },
-        ...(isSuperAdmin ? [
-          { id: "Coupons", label: "Promo Coupons", icon: Tag },
-          { id: "Config", label: "System Policy", icon: Settings },
-        ] : []),
+        { id: "Coupons", label: "Promo Coupons", icon: Tag },
+        { id: "Config", label: "System Policy", icon: Settings },
       ],
     },
   ];
@@ -497,9 +487,52 @@ export const AdminDashboard = () => {
   ];
 
   return (
-    <div className={`h-screen ${bgMain} flex font-sans overflow-hidden transition-colors duration-300`}>
-      {/* Left Sidebar (Fuse Template Style) */}
-      <aside className={`w-64 h-screen sticky top-0 ${bgSidebar} border-r flex flex-col justify-between hidden md:flex flex-shrink-0 transition-colors duration-300 overflow-y-auto`}>
+    <div className={`min-h-[calc(100vh-65px)] w-full ${bgMain} flex flex-col md:flex-row font-sans transition-colors duration-300`}>
+      {/* Mobile Horizontal Navigation Header (< 768px) */}
+      <div className={`md:hidden sticky top-[60px] z-40 ${bgSidebar} border-b ${borderDivider} p-3 shadow-md w-full overflow-hidden`}>
+        <div className="flex items-center justify-between gap-2 pb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-rose-600 to-red-500 flex items-center justify-center text-white shadow-sm">
+              <Bus className="w-4 h-4" />
+            </div>
+            <span className={`text-xs font-black tracking-wider ${textTitle}`}>Admin Panel</span>
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30 uppercase">
+            {activeTab}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+          {sidebarGroups.flatMap((g) => g.items).map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setMsg("");
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap text-[11px] transition-all cursor-pointer ${
+                  isActive
+                    ? isDay
+                      ? "bg-rose-500 text-white shadow-sm"
+                      : "bg-slate-800 text-white border border-slate-700"
+                    : isDay
+                      ? "text-slate-600 hover:text-slate-900 bg-slate-100"
+                      : "text-slate-400 hover:text-white bg-slate-900/60"
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-white" : textSubtle}`} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Desktop Left Sidebar (>= 768px) */}
+      <aside className={`w-64 h-[calc(100vh-65px)] sticky top-[65px] ${bgSidebar} border-r flex flex-col justify-between hidden md:flex flex-shrink-0 transition-colors duration-300 overflow-y-auto`}>
         <div className="p-5 space-y-6">
           {/* Fuse Brand Header */}
           <div className="flex items-center gap-3">
@@ -560,16 +593,16 @@ export const AdminDashboard = () => {
               A
             </div>
             <div className="overflow-hidden">
-              <div className={`text-xs font-bold ${textTitle} truncate`}>Super Admin</div>
-              <div className={`text-[10px] ${textSubtle} truncate`}>admin@busticket.com</div>
+              <div className={`text-xs font-bold ${textTitle} truncate`}>Admin Account</div>
+              <div className={`text-[10px] ${textSubtle} truncate`}>{user?.email || "admin@busticket.com"}</div>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Right Main Content Area */}
-      <main className={`flex-1 h-screen overflow-y-auto min-w-0 ${bgMain} p-6 lg:p-10 space-y-8 transition-colors duration-300`}>
-        <div className="max-w-7xl w-full mx-auto space-y-8">
+      {/* Main Content Area */}
+      <main className={`flex-1 min-w-0 w-full max-w-full ${bgMain} p-3 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 transition-colors duration-300 overflow-x-hidden`}>
+        <div className="max-w-7xl w-full mx-auto space-y-6 sm:space-y-8">
           {/* Top Header Bar */}
         <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b ${borderDivider}`}>
           <div className="space-y-1">
@@ -598,7 +631,7 @@ export const AdminDashboard = () => {
         {activeTab === "Project" && (
           <div className="space-y-8">
             {/* KPI Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <div className={`${bgCard} p-5 rounded-2xl border space-y-1`}>
                 <div className={`text-[11px] font-bold ${textSubtle} uppercase tracking-wider flex items-center gap-1`}>
                   <Ticket className="w-3.5 h-3.5 text-rose-500" /> Bookings Today
@@ -649,7 +682,7 @@ export const AdminDashboard = () => {
                     <span className="text-xs font-black text-blue-500 uppercase tracking-wider">Past 7 Days Live Data</span>
                   </div>
 
-                  <div className={`h-56 ${bgInnerCard} rounded-2xl p-6 border flex items-end justify-between gap-4 relative`}>
+                  <div className={`h-56 ${bgInnerCard} rounded-2xl p-3 sm:p-6 border flex items-end justify-between gap-1.5 sm:gap-4 relative overflow-hidden`}>
                     {displayWeeklyStats.map((st) => (
                       <div key={st.day} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-pointer">
                         <div className={`text-[10px] font-bold ${textSubtle} group-hover:text-blue-500 transition-colors`}>
@@ -821,7 +854,7 @@ export const AdminDashboard = () => {
         {activeTab === "Finance" && (
           <div className="space-y-8">
             {/* Financial Overview Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               <div className={`${bgCard} p-6 rounded-3xl border border-emerald-500/30 space-y-1`}>
                 <div className={`text-[11px] font-bold ${textSubtle} uppercase tracking-wider flex items-center gap-1`}>
                   <DollarSign className="w-4 h-4 text-emerald-500" /> Gross DB Ticket Sales

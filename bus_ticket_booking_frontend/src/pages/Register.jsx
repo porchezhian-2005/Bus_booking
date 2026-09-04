@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import authApi from "../services/authApi";
-import { Mail, ShieldCheck, User, Phone, Lock, Share2, ArrowRight, Bus, Eye, EyeOff } from "lucide-react";
+import { Mail, ShieldCheck, User, Phone, Lock, Share2, ArrowRight, Bus, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { Link } from "react-router";
 
 export const Register = () => {
@@ -13,8 +13,20 @@ export const Register = () => {
   const [referralCode, setReferralCode] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(60);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let timer;
+    if (step === 2 && cooldown > 0) {
+      timer = setInterval(() => {
+        setCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [step, cooldown]);
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
@@ -31,6 +43,7 @@ export const Register = () => {
       const res = await authApi.register({ name, email, phone: cleanPhone, password, referralCode });
       setMsg(res.data.message);
       setStep(2);
+      setCooldown(60);
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
     } finally {
@@ -53,6 +66,23 @@ export const Register = () => {
       setError(err.response?.data?.message || "OTP Verification failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (cooldown > 0 || resendLoading) return;
+    setResendLoading(true);
+    setError("");
+    setMsg("");
+    try {
+      const res = await authApi.resendOtp({ email });
+      setMsg(res.data.message || "A new 6-digit OTP code has been sent to your email.");
+      setOtp("");
+      setCooldown(60);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to resend OTP code");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -125,6 +155,7 @@ export const Register = () => {
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
                   title={showPassword ? "Hide Password" : "Show Password"}
+                  aria-label={showPassword ? "Hide Password" : "Show Password"}
                   className="absolute right-3 text-slate-400 hover:text-white cursor-pointer transition-colors p-1"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4 text-rose-400" /> : <Eye className="w-4 h-4 text-slate-400" />}
@@ -145,11 +176,30 @@ export const Register = () => {
           </form>
         ) : (
           <form onSubmit={handleOtpVerify} className="space-y-4">
-            <p className="text-xs text-slate-400 text-center mb-4">Please enter the 6-digit OTP code sent to <strong>{email}</strong></p>
+            <p className="text-xs text-slate-400 text-center mb-2">Please enter the 6-digit OTP code sent to <strong>{email}</strong></p>
             <div className="flex gap-2">
               <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)} className="w-full px-4 py-3 rounded-xl glass-input text-center text-xl font-black tracking-widest text-rose-400" placeholder="Enter 6-digit OTP code (e.g., 123456)" maxLength={6} required />
               <button type="submit" disabled={loading} className="px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs transition-all shadow-lg shadow-emerald-600/30 cursor-pointer whitespace-nowrap">
                 {loading ? "..." : "VERIFY"}
+              </button>
+            </div>
+
+            <div className="flex justify-between items-center text-xs pt-2 border-t border-white/5">
+              <button type="button" onClick={() => setStep(1)} className="text-slate-400 hover:text-white transition-colors cursor-pointer">
+                ← Edit Info
+              </button>
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={cooldown > 0 || resendLoading}
+                className={`font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                  cooldown > 0 || resendLoading
+                    ? "text-slate-500 cursor-not-allowed"
+                    : "text-rose-400 hover:underline"
+                }`}
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${resendLoading ? "animate-spin" : ""}`} />
+                <span>{resendLoading ? "Resending..." : cooldown > 0 ? `Resend OTP (${cooldown}s)` : "Resend OTP"}</span>
               </button>
             </div>
           </form>
