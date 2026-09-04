@@ -55,7 +55,9 @@ const authSlice = createSlice({
     setCredentials: (state, action) => {
       if (action.payload.user) {
         state.user = action.payload.user;
-        state.role = action.payload.user.role || action.payload.role || localStorage.getItem("userRole") || "user";
+        const newRole = action.payload.user.role || action.payload.role || localStorage.getItem("userRole") || "user";
+        state.role = newRole;
+        localStorage.setItem("userRole", newRole);
       }
       if (action.payload.token) state.token = action.payload.token;
     },

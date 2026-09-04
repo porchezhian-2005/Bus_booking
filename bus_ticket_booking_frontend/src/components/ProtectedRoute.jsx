@@ -13,7 +13,8 @@ export const ProtectedRoute = ({ children, allowedRoles, requireAdmin, requireCu
   const { token, role } = useSelector((state) => state.auth);
   const location = useLocation();
 
-  const normalizedRole = String(role || "").toUpperCase();
+  const effectiveRole = role || localStorage.getItem("userRole") || "";
+  const normalizedRole = String(effectiveRole).toUpperCase();
   const isAdmin = normalizedRole === "ADMIN" || normalizedRole === "SUPER_ADMIN";
 
   // 1. Unauthenticated Check

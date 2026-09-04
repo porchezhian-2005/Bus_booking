@@ -67,18 +67,20 @@ export const Navbar = () => {
 
           {/* Navigation Links & Display Controls */}
           <div className="flex items-center gap-1.5 sm:gap-3 text-xs sm:text-sm font-medium flex-shrink-0">
-            <Link
-              to="/"
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                isActive("/")
-                  ? "bg-rose-500/15 text-rose-500 border border-rose-500/40 shadow-sm"
-                  : "text-slate-300 hover:text-white hover:bg-slate-800/50"
-              }`}
-              title="Bus Tickets"
-            >
-              <Bus className="w-4 h-4 text-rose-500" />
-              <span className="hidden sm:inline">Bus Tickets</span>
-            </Link>
+            {!(String(role || localStorage.getItem("userRole") || "").toUpperCase() === "ADMIN" || String(role || localStorage.getItem("userRole") || "").toUpperCase() === "SUPER_ADMIN") && (
+              <Link
+                to="/"
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  isActive("/")
+                    ? "bg-rose-500/15 text-rose-500 border border-rose-500/40 shadow-sm"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800/50"
+                }`}
+                title="Bus Tickets"
+              >
+                <Bus className="w-4 h-4 text-rose-500" />
+                <span className="hidden sm:inline">Bus Tickets</span>
+              </Link>
+            )}
 
             {/* Display Mode Control Toolbar */}
             <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10">

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router";
 import toast from "react-hot-toast";
@@ -42,6 +43,7 @@ import {
   Edit,
   Power,
   Trash2,
+  X,
 } from "lucide-react";
 
 export const formatIndianCurrency = (amount) => {
@@ -140,7 +142,32 @@ export const AdminDashboard = () => {
   const [editTripArrTime, setEditTripArrTime] = useState("");
   const [editTripPrice, setEditTripPrice] = useState("");
   const [editTripStatus, setEditTripStatus] = useState("SCHEDULED");
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  // Prevent background page scrolling & handle Escape key when any modal is active
+  useEffect(() => {
+    const isAnyModalActive = Boolean(
+      editingBus || decommissioningBus || editingRoute || editingTrip
+    );
+    if (isAnyModalActive) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setEditingBus(null);
+        setDecommissioningBus(null);
+        setEditingRoute(null);
+        setEditingTrip(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [editingBus, decommissioningBus, editingRoute, editingTrip]);
 
   useEffect(() => {
     fetchAllAdminData();
@@ -393,10 +420,11 @@ export const AdminDashboard = () => {
     }
   };
 
+  const effectiveToken = token || localStorage.getItem("accessToken");
   const effectiveRole = String(user?.role || role || localStorage.getItem("userRole") || "").toUpperCase();
   const isAdmin = effectiveRole === "ADMIN" || effectiveRole === "SUPER_ADMIN";
 
-  if (!token || !isAdmin) {
+  if (!effectiveToken || !isAdmin) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4">
         <div className="max-w-md w-full glass-card p-8 rounded-3xl border border-rose-500/30 text-center space-y-5 shadow-2xl">
@@ -422,9 +450,9 @@ export const AdminDashboard = () => {
   // Dynamic Theme Theme Classes
   const bgMain = isDay ? "bg-slate-100 text-slate-900" : "bg-[#090d16] text-slate-100";
   const bgSidebar = isDay ? "bg-white border-slate-200" : "bg-[#0e131f] border-slate-800/80";
-  const bgCard = isDay ? "bg-white border-slate-200 text-slate-900 shadow-md" : "bg-[#0e131f] border-slate-800 text-slate-100 shadow-xl";
-  const bgInnerCard = isDay ? "bg-slate-50 border-slate-200" : "bg-[#090d16] border-slate-800";
-  const bgInput = isDay ? "bg-white border-slate-300 text-slate-900" : "bg-[#090d16] border-slate-800 text-white";
+  const bgCard = isDay ? "bg-white border-slate-200 text-slate-900 shadow-2xl" : "bg-slate-900 border-slate-700 text-slate-100 shadow-2xl";
+  const bgInnerCard = isDay ? "bg-slate-50 border-slate-200" : "bg-slate-950 border-slate-800";
+  const bgInput = isDay ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-slate-700 text-white";
   const textSubtle = isDay ? "text-slate-600 font-medium" : "text-slate-400";
   const textTitle = isDay ? "text-slate-900 font-extrabold" : "text-white font-extrabold";
   const borderDivider = isDay ? "border-slate-200" : "border-slate-800/80";
@@ -487,7 +515,7 @@ export const AdminDashboard = () => {
   ];
 
   return (
-    <div className={`min-h-[calc(100vh-65px)] w-full ${bgMain} flex flex-col md:flex-row font-sans transition-colors duration-300`}>
+    <div className={`relative z-10 min-h-[calc(100vh-65px)] w-full ${bgMain} flex flex-col md:flex-row font-sans transition-colors duration-300`}>
       {/* Mobile Horizontal Navigation Header (< 768px) */}
       <div className={`md:hidden sticky top-[60px] z-40 ${bgSidebar} border-b ${borderDivider} p-3 shadow-md w-full overflow-hidden`}>
         <div className="flex items-center justify-between gap-2 pb-2">
@@ -1172,7 +1200,12 @@ export const AdminDashboard = () => {
                         <td className="py-3 px-3 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => setEditingBus({ ...b })}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setEditingBus({ ...b });
+                              }}
                               className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-colors cursor-pointer"
                               title="Edit Bus Details"
                             >
@@ -1180,7 +1213,12 @@ export const AdminDashboard = () => {
                             </button>
                             {b.status !== "DECOMMISSIONED" && (
                               <button
-                                onClick={() => setDecommissioningBus(b)}
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setDecommissioningBus(b);
+                                }}
                                 className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
                                 title="Decommission Bus"
                               >
@@ -1737,75 +1775,119 @@ export const AdminDashboard = () => {
       </main>
 
       {/* EDIT BUS MODAL */}
-      {editingBus && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`max-w-md w-full ${bgCard} p-6 rounded-3xl border shadow-2xl space-y-4`}>
-            <h3 className={`text-base font-extrabold ${textTitle} flex items-center gap-2`}>
-              <Edit className="w-4 h-4 text-rose-500" /> Edit Bus Fleet Details
-            </h3>
-            <form onSubmit={handleUpdateBus} className="space-y-3">
-              <div>
-                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Bus Name</label>
-                <input
-                  type="text"
-                  value={editingBus.name || ""}
-                  onChange={(e) => setEditingBus({ ...editingBus, name: e.target.value })}
-                  className={`w-full px-4 py-2.5 rounded-xl ${bgInput} text-xs font-bold`}
-                  required
-                />
+      {editingBus && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSavingEdit) {
+              setEditingBus(null);
+            }
+          }}
+        >
+          <div className={`relative z-[10000] w-full max-w-lg max-h-[90vh] flex flex-col ${bgCard} rounded-3xl border border-slate-700/80 shadow-2xl overflow-hidden transition-all duration-200`}>
+            {/* Modal Header */}
+            <div className={`px-6 py-4 border-b flex items-center justify-between shrink-0 ${isDay ? "border-slate-200/80 bg-slate-50/50" : "border-slate-800/80 bg-slate-900/40"}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center border border-rose-500/20 shadow-xs">
+                  <Edit className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-base font-extrabold ${textTitle} leading-tight`}>Edit Bus Fleet Details</h3>
+                  <p className={`text-xs ${textSubtle} font-medium`}>Update operational details for {editingBus.busNumber || "this bus"}</p>
+                </div>
               </div>
-              <div>
-                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Registration Number</label>
-                <input
-                  type="text"
-                  value={editingBus.busNumber || ""}
-                  onChange={(e) => setEditingBus({ ...editingBus, busNumber: e.target.value })}
-                  className={`w-full px-4 py-2.5 rounded-xl ${bgInput} text-xs font-bold`}
-                  required
-                />
+              <button
+                type="button"
+                onClick={() => setEditingBus(null)}
+                disabled={isSavingEdit}
+                className={`p-2 rounded-xl transition-colors ${
+                  isDay ? "hover:bg-slate-200/70 text-slate-500" : "hover:bg-slate-800 text-slate-400"
+                }`}
+                title="Close Modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form & Content Area */}
+            <form onSubmit={handleUpdateBus} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 space-y-4 overflow-y-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-xs font-bold ${textSubtle} uppercase tracking-wider mb-1.5`}>Bus Name</label>
+                    <input
+                      type="text"
+                      value={editingBus.name || ""}
+                      onChange={(e) => setEditingBus({ ...editingBus, name: e.target.value })}
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${bgInput} text-xs font-bold border border-transparent focus:border-rose-500/50 focus:outline-none transition-all`}
+                      placeholder="e.g. KPN Express"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-bold ${textSubtle} uppercase tracking-wider mb-1.5`}>Registration Number</label>
+                    <input
+                      type="text"
+                      value={editingBus.busNumber || ""}
+                      onChange={(e) => setEditingBus({ ...editingBus, busNumber: e.target.value })}
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${bgInput} text-xs font-bold border border-transparent focus:border-rose-500/50 focus:outline-none transition-all`}
+                      placeholder="e.g. TN-38-AB-1234"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-xs font-bold ${textSubtle} uppercase tracking-wider mb-1.5`}>Operator Name</label>
+                    <input
+                      type="text"
+                      value={editingBus.operatorName || ""}
+                      onChange={(e) => setEditingBus({ ...editingBus, operatorName: e.target.value })}
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${bgInput} text-xs font-bold border border-transparent focus:border-rose-500/50 focus:outline-none transition-all`}
+                      placeholder="e.g. KPN Travels"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-bold ${textSubtle} uppercase tracking-wider mb-1.5`}>Total Seats</label>
+                    <input
+                      type="number"
+                      value={editingBus.totalSeats || 30}
+                      onChange={(e) => setEditingBus({ ...editingBus, totalSeats: e.target.value })}
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${bgInput} text-xs font-bold border border-transparent focus:border-rose-500/50 focus:outline-none transition-all`}
+                      required
+                      min="10"
+                      max="60"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={`block text-xs font-bold ${textSubtle} uppercase tracking-wider mb-1.5`}>Bus Type</label>
+                  <select
+                    value={editingBus.busType || ""}
+                    onChange={(e) => setEditingBus({ ...editingBus, busType: e.target.value })}
+                    className={`w-full px-3.5 py-2.5 rounded-xl ${bgInput} text-xs font-bold border border-transparent focus:border-rose-500/50 focus:outline-none cursor-pointer transition-all`}
+                    required
+                  >
+                    <option value="AC Sleeper (2+1)">AC Sleeper (2+1)</option>
+                    <option value="AC Seater (2+2)">AC Seater (2+2)</option>
+                    <option value="Non-AC Sleeper (2+1)">Non-AC Sleeper (2+1)</option>
+                    <option value="Non-AC Seater (2+2)">Non-AC Sleeper (2+2)</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Operator Name</label>
-                <input
-                  type="text"
-                  value={editingBus.operatorName || ""}
-                  onChange={(e) => setEditingBus({ ...editingBus, operatorName: e.target.value })}
-                  className={`w-full px-4 py-2.5 rounded-xl ${bgInput} text-xs font-bold`}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Bus Type</label>
-                <select
-                  value={editingBus.busType || ""}
-                  onChange={(e) => setEditingBus({ ...editingBus, busType: e.target.value })}
-                  className={`w-full px-4 py-2.5 rounded-xl ${bgInput} text-xs font-bold cursor-pointer`}
-                  required
-                >
-                  <option value="AC Sleeper (2+1)">AC Sleeper (2+1)</option>
-                  <option value="AC Seater (2+2)">AC Seater (2+2)</option>
-                  <option value="Non-AC Sleeper (2+1)">Non-AC Sleeper (2+1)</option>
-                  <option value="Non-AC Seater (2+2)">Non-AC Seater (2+2)</option>
-                </select>
-              </div>
-              <div>
-                <label className={`block text-xs font-bold ${textSubtle} uppercase mb-1`}>Total Seats</label>
-                <input
-                  type="number"
-                  value={editingBus.totalSeats || 30}
-                  onChange={(e) => setEditingBus({ ...editingBus, totalSeats: e.target.value })}
-                  className={`w-full px-4 py-2.5 rounded-xl ${bgInput} text-xs font-bold`}
-                  required
-                  min="10"
-                  max="60"
-                />
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
+
+              {/* Modal Footer */}
+              <div className={`px-6 py-4 border-t flex items-center justify-end gap-3 shrink-0 ${isDay ? "border-slate-200/80 bg-slate-50/50" : "border-slate-800/80 bg-slate-900/40"}`}>
                 <button
                   type="button"
                   onClick={() => setEditingBus(null)}
                   disabled={isSavingEdit}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors border disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border disabled:opacity-50 disabled:cursor-not-allowed ${
                     isDay
                       ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
                       : "bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
@@ -1816,14 +1898,15 @@ export const AdminDashboard = () => {
                 <button
                   type="submit"
                   disabled={isSavingEdit}
-                  className="px-5 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white text-xs font-black shadow-lg shadow-rose-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSavingEdit ? "Saving..." : "Save Changes"}
+                  {isSavingEdit ? "Saving Changes..." : "Save Changes"}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* DECOMMISSION BUS MODAL */}
